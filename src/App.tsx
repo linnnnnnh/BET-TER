@@ -6,20 +6,25 @@ import PredictionPage from './pages/PredictionPage'
 import HeatmapPage from './pages/HeatmapPage'
 import RewardsPage from './pages/RewardsPage'
 import ProfilePage from './pages/ProfilePage'
+import ImprovedChatWidget from './components/chat/ImprovedChatWidget'
+import { ChatProvider } from './providers/ChatProvider'
 
 function App() {
   return (
     <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/predictions" element={<PredictionPage />} />
-          <Route path="/heatmap" element={<HeatmapPage />} />
-          <Route path="/rewards" element={<RewardsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-        </Routes>
-      </Layout>
-      <Toaster />
+      <ChatProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/predictions" element={<PredictionPage />} />
+            <Route path="/heatmap" element={<HeatmapPage />} />
+            <Route path="/rewards" element={<RewardsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Routes>
+        </Layout>
+        <ImprovedChatWidget />
+        <Toaster />
+      </ChatProvider>
     </Router>
   )
 }
