@@ -31,10 +31,10 @@ pip install -r ../requirements.txt
 
 3. Groq API key :
 ```bash
-$env:GROQ_API_KEY ="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"  #Windows
+$env:GROQ_API_KEY =""  #Windows
 ```
 ```bash
-export GROQ_API_KEY ="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"  #Linux
+export GROQ_API_KEY =""  #Linux
 ```
 
 
