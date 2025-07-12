@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useActiveAccount } from 'thirdweb/react'
 import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
@@ -9,11 +9,6 @@ export default function Header() {
   const [showMenu, setShowMenu] = useState(false)
   const [isDark, setIsDark] = useState(true)
 
-  // Check for existing dark mode preference
-  useEffect(() => {
-    const isDarkMode = document.documentElement.classList.contains('dark')
-    setIsDark(isDarkMode)
-  }, [])
 
   const toggleDarkMode = () => {
     if (isDark) {
@@ -36,10 +31,12 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-psg-blue to-chiliz-red rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">PSG</span>
-            </div>
-            <span className="font-bold text-lg text-gray-900 dark:text-white">Fan Hub</span>
+            <img
+              src="/src/assets/better_icon.png"
+              alt="PSG Logo"
+              className="w-8 h-8 rounded-lg object-cover"
+            />
+            <span className="font-bold text-lg text-gray-900 dark:text-white">BET-TER</span>
           </div>
 
           {/* Desktop Navigation */}
