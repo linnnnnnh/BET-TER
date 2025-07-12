@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useActiveAccount, useReadContract, useWalletBalance } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
-import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift } from 'lucide-react'
+import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { client, chilizChain as chiliz } from '@/lib/thirdweb'
 import { getContract, toWei } from 'thirdweb'
+import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
 
 
 export default function HeatmapPage() {
   const account = useActiveAccount()
-  const [hasWonPrediction, setHasWonPrediction] = useState(false) // TODO: Get from smart contract
-  const [gameEntry, setGameEntry] = useState<'none' | 'won' | 'purchased' | 'video'>('none')
+  const [gameEntry, setGameEntry] = useState<'none' | 'purchased' | 'video' | 'ticket'>('none')
   const [isPlayingVideo, setIsPlayingVideo] = useState(false)
   const [videoWatched, setVideoWatched] = useState(false)
   const [quizAnswers, setQuizAnswers] = useState<string[]>([])
@@ -53,6 +53,13 @@ export default function HeatmapPage() {
     params: [account?.address || ""],
   })
 
+  // Read user's free tickets from smart contract
+  const { data: userFreeTickets = 0 } = useReadContract({
+    contract: getEngagementContract(),
+    method: "userFreeTickets",
+    params: [account?.address || ""]
+  })
+
   // PSG Players data (2024 squad, updated)
   const playerPhotos = [
     "https://media.psg.fr/image/upload/c_limit,w_257/f_avif/q_85/v1/donarumma1_nz1rvx?_a=BAVAZGE70",
@@ -85,22 +92,8 @@ export default function HeatmapPage() {
     { id: 87, name: "João Neves", position: "Milieu de terrain", number: 87, photo: playerPhotos[1] },
   ]
 
-  // Check if user won prediction (TODO: Replace with smart contract call)
-  useEffect(() => {
-    // Simulate checking prediction result
-    const checkPredictionResult = async () => {
-      // TODO: Call smart contract to check if user's prediction was correct
-      // const result = await contract.checkPredictionResult(account?.address)
-      // setHasWonPrediction(result)
-      
-      // For demo, randomly set to true/false
-      setHasWonPrediction(Math.random() > 0.5)
-    }
-    
-    if (account) {
-      checkPredictionResult()
-    }
-  }, [account])
+  // Free tickets are now managed by the smart contract
+  // Users get free tickets when they win predictions or through other rewards
 
   // Load game entry status from localStorage
   useEffect(() => {
@@ -254,6 +247,60 @@ export default function HeatmapPage() {
     }
   }
 
+  // Handle using free ticket to play the game
+  const handleUseFreeTicket = async () => {
+    if (!account?.address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to continue",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (freeTicketsCount === 0) {
+      toast({
+        title: "No free tickets",
+        description: "You don't have any free tickets to use",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmittingEntry(true)
+    
+    try {
+      // TODO: Implement smart contract call to playHeatmapWithTicket
+      // This will consume one free ticket and allow the user to play
+      // const contract = getEngagementContract()
+      // const transaction = prepareContractCall({
+      //   contract,
+      //   method: "playHeatmapWithTicket",
+      //   params: [BigInt(CURRENT_CAMPAIGN_ID)]
+      // })
+      // await sendTransaction(transaction)
+      
+      // Simulate successful ticket usage for now
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      setGameEntry('ticket')
+      toast({
+        title: "Free ticket used!",
+        description: "You can now play the halftime game with your free ticket",
+      })
+
+    } catch (error) {
+      console.error("Ticket usage error:", error)
+      toast({
+        title: "Failed to use ticket",
+        description: "There was an error using your free ticket",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingEntry(false)
+    }
+  }
+
   const handleWatchVideo = () => {
     setIsPlayingVideo(true)
     // No automatic completion - user must watch the full video
@@ -347,7 +394,11 @@ export default function HeatmapPage() {
     })
   }
 
-  const canPlayGame = hasWonPrediction || gameEntry === 'purchased' || gameEntry === 'video'
+  // Convert BigInt to number for UI logic
+  const freeTicketsCount = Number(userFreeTickets)
+  const hasFreePlays = freeTicketsCount > 0
+  
+  const canPlayGame = hasFreePlays || gameEntry === 'purchased' || gameEntry === 'video' || gameEntry === 'ticket'
 
 
   // Photo upload states
@@ -500,11 +551,11 @@ export default function HeatmapPage() {
           </div>
         </div>
         
-{hasWonPrediction ? (
+{hasFreePlays ? (
           <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
             <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
               <Trophy className="h-5 w-5" />
-              <span className="font-medium">Congratulations! You won the prediction!</span>
+              <span className="font-medium">You have {freeTicketsCount} free play ticket{freeTicketsCount !== 1 ? 's' : ''}!</span>
             </div>
             <p className="text-green-600 dark:text-green-400 text-sm mt-1">
               You have free access to the halftime game
@@ -538,8 +589,53 @@ export default function HeatmapPage() {
         )}
       </motion.div>
 
+      {/* Free Ticket Option (if user has free tickets) */}
+      {hasFreePlays && !canPlayGame && gameEntry === 'none' && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 card-glow border border-green-200 dark:border-green-800"
+        >
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <Gift className="h-8 w-8 text-green-600" />
+              <h3 className="text-2xl font-semibold text-green-700 dark:text-green-300">
+                You have {freeTicketsCount} free ticket{freeTicketsCount !== 1 ? 's' : ''}!
+              </h3>
+            </div>
+            
+            <p className="text-green-600 dark:text-green-400 mb-6">
+              Use your free ticket to play the halftime game. You earned this by making accurate predictions!
+            </p>
+            
+            <Button
+              onClick={handleUseFreeTicket}
+              disabled={isSubmittingEntry}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-semibold"
+            >
+              {isSubmittingEntry ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  Using Ticket...
+                </>
+              ) : (
+                <>
+                  <Gift className="w-5 h-5 mr-2" />
+                  Use Free Ticket
+                </>
+              )}
+            </Button>
+            
+            <p className="text-sm text-green-600/80 dark:text-green-400/80 mt-3">
+              Free • No payment required
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Entry Options (if didn't win prediction and hasn't gained access) */}
-      {!hasWonPrediction && !canPlayGame && gameEntry === 'none' && (
+      {!hasFreePlays && !canPlayGame && gameEntry === 'none' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

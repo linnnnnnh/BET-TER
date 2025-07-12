@@ -4,6 +4,8 @@ import { useActiveAccount } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
 import { Calendar, Clock, Target, Trophy, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+// TODO: Implement smart contract integration once ThirdWeb type issues are resolved
+// import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
 
 export default function PredictionPage() {
   const account = useActiveAccount()
@@ -44,9 +46,9 @@ export default function PredictionPage() {
     setIsSubmitting(true)
     
     try {
-      // TODO: Implement smart contract call
-      // const prediction = `${psgScore}-${lyonScore}`
-      // await contract.submitPrediction(prediction)
+      // TODO: Implement smart contract integration
+      // Currently there are TypeScript compatibility issues with ThirdWeb types
+      // that need to be resolved before implementing the submitPredictions call
       
       // Simulate API call for now
       await new Promise(resolve => setTimeout(resolve, 2000))
