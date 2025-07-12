@@ -140,9 +140,9 @@ export default function PredictionPage() {
 
         {/* Score Input */}
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 mb-6">
-          <div className="flex items-center justify-center space-x-8">
+          <div className="flex items-center justify-center">
             {/* PSG Score */}
-            <div className="text-center">
+            <div className="flex flex-col justify-center text-center items-center">
               <div className="w-20 h-20 bg-psg-blue rounded-full flex items-center justify-center mb-3 shadow-lg">
                 <span className="text-white text-lg font-bold">PSG</span>
               </div>
@@ -158,10 +158,10 @@ export default function PredictionPage() {
             </div>
 
             {/* VS Separator */}
-            <div className="text-3xl font-bold text-gray-400 dark:text-gray-500">-</div>
+            <div className="font-bold text-gray-400 dark:text-gray-500" style={{ marginRight: '5em', marginLeft: '5em' }}>-</div>
 
             {/* Lyon Score */}
-            <div className="text-center">
+            <div className="flex flex-col justif-center text-center items-center">
               <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mb-3 shadow-lg">
                 <span className="text-white text-lg font-bold">OL</span>
               </div>
