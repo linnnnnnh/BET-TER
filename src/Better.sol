@@ -25,6 +25,8 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     error PredictionNotPlayed();
     error GameNotResolved();
     error PredictionNotWon();
+    error PredictionGameNotActive();
+    error SecondHalftimeGameNotActive();
 
     //================================================
     // Structs
@@ -207,6 +209,12 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (msg.sender != trustedDataResolver) {
             revert Unauthorized();
         }
+        if (predictionGames[_campaignId].resolved) {
+            revert MarketAlreadyResolved();
+        }
+        if (campaigns[_campaignId].endTimePredictionGame >= block.timestamp || campaigns[_campaignId].active == false) {
+            revert PredictionGameNotActive();
+        }
 
         predictionGames[_campaignId].resolved = true;
         predictionGames[_campaignId].team1Score = _team1Score;
@@ -233,6 +241,12 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (predictionGames[_campaignId].resolved) {
             revert MarketAlreadyResolved();
         }
+        if (
+            campaigns[_campaignId].startTimePredictionGame > block.timestamp
+                || campaigns[_campaignId].endTimePredictionGame < block.timestamp || campaigns[_campaignId].active == false
+        ) {
+            revert PredictionGameNotActive();
+        }
         predictionGames[_campaignId].userPrediction[msg.sender] = Prediction(true, _team1Score, _team2Score);
         emit PredictionsSubmitted(msg.sender, _campaignId, _team1Score, _team2Score);
     }
@@ -242,6 +256,9 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     /// @dev This function checks if the player's prediction matches the final score of the game
     /// @dev Revert if the user has not played the prediction game
     function checkPredictionResult(uint256 _campaignId) external returns (bool) {
+        if (campaigns[_campaignId].active == false) {
+            revert CampaignNotActive();
+        }
         if (!predictionGames[_campaignId].resolved) {
             revert GameNotResolved();
         }
@@ -305,6 +322,13 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (userHasHalftimeTicket[msg.sender] == false) {
             revert NoFreeTickets();
         }
+        if (
+            campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
+                || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
+        ) {
+            revert SecondHalftimeGameNotActive();
+        }
+
         userHasHalftimeTicket[msg.sender] = false;
 
         // Generate unique random seed
@@ -326,6 +350,12 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         uint256 requiredChz = getPlayFeeInUsdCents();
         if (msg.value < requiredChz) {
             revert InsufficientChzSent();
+        }
+        if (
+            campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
+                || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
+        ) {
+            revert SecondHalftimeGameNotActive();
         }
 
         // Generate unique random seed
