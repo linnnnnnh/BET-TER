@@ -212,9 +212,10 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (predictionGames[_campaignId].resolved) {
             revert MarketAlreadyResolved();
         }
-        if (campaigns[_campaignId].endTimePredictionGame >= block.timestamp || campaigns[_campaignId].active == false) {
-            revert PredictionGameNotActive();
-        }
+        /// @dev In production, we should check the duration of the prediction game
+        // if (campaigns[_campaignId].endTimePredictionGame >= block.timestamp || campaigns[_campaignId].active == false) {
+        //     revert PredictionGameNotActive();
+        // }
 
         predictionGames[_campaignId].resolved = true;
         predictionGames[_campaignId].team1Score = _team1Score;
@@ -241,12 +242,14 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (predictionGames[_campaignId].resolved) {
             revert MarketAlreadyResolved();
         }
-        if (
-            campaigns[_campaignId].startTimePredictionGame > block.timestamp
-                || campaigns[_campaignId].endTimePredictionGame < block.timestamp || campaigns[_campaignId].active == false
-        ) {
-            revert PredictionGameNotActive();
-        }
+        /// @dev In production, we should check the duration of the prediction game
+        // if (
+        //     campaigns[_campaignId].startTimePredictionGame > block.timestamp
+        //         || campaigns[_campaignId].endTimePredictionGame < block.timestamp || campaigns[_campaignId].active == false
+        // ) {
+        //     revert PredictionGameNotActive();
+        // }
+
         predictionGames[_campaignId].userPrediction[msg.sender] = Prediction(true, _team1Score, _team2Score);
         emit PredictionsSubmitted(msg.sender, _campaignId, _team1Score, _team2Score);
     }
@@ -322,12 +325,13 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (userHasHalftimeTicket[msg.sender] == false) {
             revert NoFreeTickets();
         }
-        if (
-            campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
-                || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
-        ) {
-            revert SecondHalftimeGameNotActive();
-        }
+        /// @dev In production, we should check the duration of the second halftime game
+        // if (
+        //     campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
+        //         || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
+        // ) {
+        //     revert SecondHalftimeGameNotActive();
+        // }
 
         userHasHalftimeTicket[msg.sender] = false;
 
@@ -351,12 +355,13 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         if (msg.value < requiredChz) {
             revert InsufficientChzSent();
         }
-        if (
-            campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
-                || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
-        ) {
-            revert SecondHalftimeGameNotActive();
-        }
+        /// @dev In production, we should check the duration of the second halftime game
+        // if (
+        //     campaigns[_campaignId].startTimeSecondHalftimeGame > block.timestamp
+        //         || campaigns[_campaignId].endTimeSecondHalftimeGame < block.timestamp
+        // ) {
+        //     revert SecondHalftimeGameNotActive();
+        // }
 
         // Generate unique random seed
         bytes32 userRandomNumber =
