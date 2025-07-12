@@ -65,6 +65,15 @@ export default function HeatmapPage() {
   }
 
   const handleCardSelection = (cardId: number) => {
+    if (!account) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to play the game",
+        variant: "destructive",
+      })
+      return
+    }
+    
     if (selectedCard !== null || showResult) return
     
     setSelectedCard(cardId)
@@ -253,11 +262,17 @@ export default function HeatmapPage() {
             </div>
             <Button
               onClick={handlePurchaseEntry}
-              disabled={isSubmittingEntry}
-              className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white"
+              disabled={!account || isSubmittingEntry}
+              className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmittingEntry ? "Processing..." : "Purchase Now"}
             </Button>
+            
+            {!account && (
+              <p className="text-sm text-red-500 mt-2 text-center">
+                Log in to purchase entry
+              </p>
+            )}
           </div>
 
           {/* Watch Video */}
@@ -275,11 +290,17 @@ export default function HeatmapPage() {
             </div>
             <Button
               onClick={handleWatchVideo}
-              disabled={isPlayingVideo}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              disabled={!account || isPlayingVideo}
+              className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isPlayingVideo ? "Playing Video..." : "Start Video"}
             </Button>
+            
+            {!account && (
+              <p className="text-sm text-red-500 mt-2 text-center">
+                Log in to watch video
+              </p>
+            )}
           </div>
         </motion.div>
       )}
@@ -338,11 +359,17 @@ export default function HeatmapPage() {
 
           <Button
             onClick={handleSubmitQuiz}
-            disabled={isSubmittingEntry}
-            className="bg-psg-blue hover:bg-psg-blue/90 text-white"
+            disabled={!account || isSubmittingEntry}
+            className="bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmittingEntry ? "Submitting..." : "Submit Quiz"}
           </Button>
+          
+          {!account && (
+            <p className="text-sm text-red-500 mt-2">
+              Log in to submit quiz
+            </p>
+          )}
         </motion.div>
       )}
 
@@ -371,11 +398,18 @@ export default function HeatmapPage() {
               
               <Button
                 onClick={startCardGame}
-                className="bg-psg-blue hover:bg-psg-blue/90 text-white px-8 py-3 text-lg font-semibold"
+                disabled={!account}
+                className="bg-psg-blue hover:bg-psg-blue/90 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Star className="w-5 h-5 mr-2" />
                 Start Card Game
               </Button>
+              
+              {!account && (
+                <p className="text-sm text-red-500 mt-2">
+                  Log in to play the game
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -397,20 +431,26 @@ export default function HeatmapPage() {
                   return (
                     <motion.div
                       key={player.id}
-                      whileHover={{ scale: selectedCard === null ? 1.05 : 1 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ scale: selectedCard === null && account ? 1.05 : 1 }}
+                      whileTap={{ scale: account ? 0.95 : 1 }}
                       onClick={() => handleCardSelection(player.id)}
-                      className={`relative cursor-pointer rounded-xl p-4 border-2 transition-all duration-300 ${
+                      className={`relative transition-all duration-300 ${
+                        !account 
+                          ? 'cursor-not-allowed opacity-50'
+                          : selectedCard === null
+                          ? 'cursor-pointer'
+                          : 'cursor-default'
+                      } ${
                         isWinner 
                           ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                           : isLoser
                           ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
                           : isSelected
                           ? 'border-psg-blue bg-blue-50 dark:bg-blue-900/20'
-                          : selectedCard === null
+                          : selectedCard === null && account
                           ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-psg-blue hover:shadow-lg'
                           : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-50'
-                      }`}
+                      } rounded-xl p-4 border-2`}
                     >
                       {/* Player Photo */}
                       <div className="text-center mb-3">
@@ -457,6 +497,15 @@ export default function HeatmapPage() {
                   )
                 })}
               </div>
+
+              {/* User Authentication Notice */}
+              {!account && (
+                <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-red-600 dark:text-red-400 font-medium">
+                    🔗 Log in to select a player card
+                  </p>
+                </div>
+              )}
 
               {/* Selection Status */}
               {selectedCard && !showResult && (

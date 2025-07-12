@@ -25,8 +25,8 @@ export default function PredictionPage() {
   const handleSubmitPrediction = async () => {
     if (!account) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to make a prediction",
+        title: "Not logged in",
+        description: "Please log in to make a prediction",
         variant: "destructive",
       })
       return
@@ -207,7 +207,7 @@ export default function PredictionPage() {
           
           {!account && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              Connect your wallet to submit predictions
+              Log in to submit predictions
             </p>
           )}
         </div>

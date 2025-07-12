@@ -53,13 +53,13 @@ export default function Header() {
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Wallet Connection - Desktop */}
+            {/* User Authentication - Desktop */}
             <div className="hidden md:block">
               <ConnectButton 
                 client={client}
                 theme="light"
                 connectButton={{
-                  label: "Connect Wallet",
+                  label: "Log In",
                   style: {
                     background: "linear-gradient(135deg, #CC3340 0%, #FF6B35 100%)",
                     color: "white",
@@ -69,7 +69,7 @@ export default function Header() {
                   }
                 }}
                 connectModal={{
-                  title: "Connect to PSG Fan Hub",
+                  title: "Log In to PSG Fan Hub",
                   titleIcon: "https://psg-fan-platform.app/logo.png",
                 }}
               />
@@ -100,7 +100,7 @@ export default function Header() {
                 client={client}
                 theme="light"
                 connectButton={{
-                  label: account ? "Wallet Connected" : "Connect Wallet",
+                  label: account ? "Logged In" : "Log In",
                   style: {
                     background: "linear-gradient(135deg, #CC3340 0%, #FF6B35 100%)",
                     color: "white",
@@ -112,7 +112,7 @@ export default function Header() {
                   }
                 }}
                 connectModal={{
-                  title: "Connect to PSG Fan Hub",
+                  title: "Log In to PSG Fan Hub",
                   titleIcon: "https://psg-fan-platform.app/logo.png",
                 }}
               />
