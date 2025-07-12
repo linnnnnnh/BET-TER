@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useActiveAccount } from 'thirdweb/react'
+import { useActiveAccount, useReadContract, useWalletBalance } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
 import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { client, chilizChain as chiliz } from '@/lib/thirdweb'
+import { getContract, toWei } from 'thirdweb'
+
 
 export default function HeatmapPage() {
   const account = useActiveAccount()
@@ -15,11 +18,40 @@ export default function HeatmapPage() {
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false)
   const [hasPlayedGame, setHasPlayedGame] = useState(false)
   
+  // Mock purchase modal states
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false)
+  const [purchaseTokenType, setPurchaseTokenType] = useState<'CHZ' | 'PSG'>('CHZ')
+  const [purchaseProcessing, setPurchaseProcessing] = useState(false)
+  
   // Football game states
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
   const [gameStarted, setGameStarted] = useState(false)
   const [winningCard, setWinningCard] = useState<number | null>(null)
   const [showResult, setShowResult] = useState(false)
+
+  // Token contract addresses (Chiliz network)
+  const PSG_TOKEN_ADDRESS = "0x6fc212cdE3b420733A88496CbdbB15d85beAb1Ca" // PSG Fan Token address on Chiliz
+
+  // PSG Token contract (CHZ is native, no contract needed)
+  const psgContract = getContract({
+    client,
+    chain: chiliz,
+    address: PSG_TOKEN_ADDRESS,
+  })
+
+  // Read CHZ balance (native token)
+  const { data: chzBalance } = useWalletBalance({
+    client,
+    chain: chiliz,
+    address: account?.address,
+  })
+
+  // Read PSG balance
+  const { data: psgBalance } = useReadContract({
+    contract: psgContract,
+    method: "balanceOf", 
+    params: [account?.address || ""],
+  })
 
   // PSG Players data
   const psgPlayers = [
@@ -107,15 +139,58 @@ export default function HeatmapPage() {
         }, 2000)
       }
     }, 1000)
-  }
+  } 
 
   const handlePurchaseEntry = async (paymentMethod: 'CHZ' | 'PSG') => {
+    if (!account?.address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to continue",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmittingEntry(true)
+    
     try {
-      // TODO: Implement fiat on-ramp integration with specific token
-      // await fiatOnRamp.purchaseGameEntry(paymentMethod)
+      // Check token balance based on payment method
+      const currentBalance = paymentMethod === 'CHZ' ? chzBalance?.value : psgBalance
+      const tokenName = paymentMethod === 'CHZ' ? 'CHZ' : 'PSG Fan Token'
+      const requiredAmount = toWei("1") // 1 token required for entry
       
-      // Simulate purchase with specific payment method
+      // If user doesn't have enough tokens, trigger fiat onramp
+      if (
+        !currentBalance ||
+        (typeof currentBalance === "bigint" && currentBalance < requiredAmount)
+      ) {
+        toast({
+          title: `Insufficient ${tokenName}`,
+          description: `You need at least 1 $${paymentMethod} token. Opening purchase simulator...`,
+        })
+
+        // Show purchase modal instead of popup window
+        setPurchaseTokenType(paymentMethod)
+        setShowPurchaseModal(true)
+        return
+      }
+
+      // User has sufficient tokens - proceed with direct token payment
+      toast({
+        title: "Processing payment...",
+        description: `Using your existing $${paymentMethod} tokens`,
+      })
+
+      // TODO: Implement direct token payment via smart contract
+      // For CHZ (native token): send native currency transaction
+      // For PSG: use ERC-20 transfer
+      // const txResult = await writeContract({
+      //   contract: psgContract, // only for PSG payments
+      //   method: "transfer",
+      //   params: [GAME_CONTRACT_ADDRESS, requiredAmount],
+      // })
+
+      // Simulate successful payment for now
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       setGameEntry('purchased')
@@ -123,7 +198,9 @@ export default function HeatmapPage() {
         title: "Entry purchased!",
         description: `You can now play the heatmap game. Paid with $${paymentMethod}`,
       })
+
     } catch (error) {
+      console.error("Payment error:", error)
       toast({
         title: "Purchase failed",
         description: `There was an error processing your $${paymentMethod} payment`,
@@ -182,6 +259,32 @@ export default function HeatmapPage() {
     } finally {
       setIsSubmittingEntry(false)
     }
+  }
+
+  const handlePurchaseSuccess = async () => {
+    setPurchaseProcessing(true)
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    setPurchaseProcessing(false)
+    setShowPurchaseModal(false)
+    
+    const tokenName = purchaseTokenType === 'CHZ' ? 'CHZ' : 'PSG Fan Token'
+    toast({
+      title: "Payment successful!",
+      description: `${tokenName} purchased successfully. You can now play the game!`,
+    })
+    setGameEntry('purchased')
+  }
+
+  const handlePurchaseCancel = () => {
+    setShowPurchaseModal(false)
+    setPurchaseProcessing(false)
+    toast({
+      title: "Payment cancelled",
+      description: "The payment was cancelled by user",
+    })
   }
 
   const canPlayGame = hasWonPrediction || gameEntry === 'purchased' || gameEntry === 'video'
@@ -267,22 +370,29 @@ export default function HeatmapPage() {
               
               {/* Right Column - Payment Buttons */}
               <div className="flex flex-col space-y-3 min-w-[140px]">
-                <span className='font-semibold'> Pay with </span>
-                <Button
-                  onClick={() => handlePurchaseEntry('CHZ')}
-                  disabled={!account || isSubmittingEntry}
-                  className="w-full bg-chiliz-red hover:bg-chiliz-red/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
-                >
-                  <span className="font-bold">$CHZ</span>
-                </Button>
+                <span className='font-semibold text-sm text-gray-600 dark:text-gray-400'>Pay with</span>
                 
-                <Button
-                  onClick={() => handlePurchaseEntry('PSG')}
-                  disabled={!account || isSubmittingEntry}
-                  className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
-                >
-                  <span className="font-bold">$PSG</span>
-                </Button>
+                {/* CHZ Payment Button */}
+                <div className="space-y-1">
+                  <Button
+                    onClick={() => handlePurchaseEntry('CHZ')}
+                    disabled={!account || isSubmittingEntry}
+                    className="w-full bg-chiliz-red hover:bg-chiliz-red/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                  >
+                    <span className="font-bold">$CHZ</span>
+                  </Button>
+                </div>
+                
+                {/* PSG Payment Button */}
+                <div className="space-y-1">
+                  <Button
+                    onClick={() => handlePurchaseEntry('PSG')}
+                    disabled={!account || isSubmittingEntry}
+                    className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                  >
+                    <span className="font-bold">$PSG</span>
+                  </Button>
+                </div>
                 
                 {isSubmittingEntry && (
                   <p className="text-xs text-gray-500 text-center">Processing...</p>
@@ -556,12 +666,6 @@ export default function HeatmapPage() {
                   <h4 className="font-bold mb-2">
                     {selectedCard === winningCard ? "🎉 Congratulations!" : "😅 Better luck next time!"}
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    The winning card was: <strong>{psgPlayers.find(p => p.id === winningCard)?.name}</strong>
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Adding you to the winner pool...
-                  </p>
                 </div>
               )}
             </div>
@@ -625,7 +729,6 @@ export default function HeatmapPage() {
                   😅 Not This Time, But...
                 </h3>
                 <p className="text-orange-600 dark:text-orange-400 mb-4">
-                  The winning card was: <strong>{psgPlayers.find(p => p.id === winningCard)?.name}</strong><br/>
                   You selected: <strong>{psgPlayers.find(p => p.id === selectedCard)?.name}</strong>
                 </p>
                 
@@ -658,7 +761,7 @@ export default function HeatmapPage() {
                         <span className="text-sm font-medium">Upload Your Photo</span>
                       </label>
                       <p className="text-xs text-gray-500 mt-1">
-                        We'll generate your AI video within 24 hours
+                        We'll generate your AI video within a few minutes
                       </p>
                     </div>
                   </div>
@@ -670,20 +773,63 @@ export default function HeatmapPage() {
                     className="bg-purple-600 hover:bg-purple-700 text-white"
                   >
                     <Play className="w-4 h-4 mr-2" />
-                    Create AI Video
+                    Add your Photo
                   </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => window.location.href = '/rewards'}
-                    className="border-purple-600 text-purple-600 hover:bg-purple-50"
-                  >
-                    View Progress
-                  </Button>
+                  
                 </div>
               </div>
             </div>
           )}
         </motion.div>
+      )}
+
+      {/* Purchase Modal */}
+      {showPurchaseModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-xl"
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-4">🪙</div>
+              <h2 className="text-xl font-bold mb-4">Token Purchase Simulator</h2>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
+                <p><strong>Token:</strong> ${purchaseTokenType}</p>
+                <p><strong>Amount:</strong> 1.00 {purchaseTokenType}</p>
+                <p><strong>Price:</strong> ~€1.00</p>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+                This is a simulation of the token purchase flow. In production, this would connect to a real payment provider.
+              </p>
+              
+              {purchaseProcessing ? (
+                <div className="text-orange-600 font-medium">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-2"></div>
+                  Processing payment...
+                </div>
+              ) : (
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={handlePurchaseSuccess}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    ✅ Simulate Success
+                  </Button>
+                  <Button
+                    onClick={handlePurchaseCancel}
+                    variant="outline"
+                    className="flex-1 border-red-500 text-red-500 hover:bg-red-50"
+                  >
+                    ❌ Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   )

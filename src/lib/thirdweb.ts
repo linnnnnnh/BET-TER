@@ -15,6 +15,7 @@ export const chilizChain = {
     name: "CHZ",
     symbol: "CHZ",
   },
+  rpc: "https://rpc.ankr.com/chiliz",
   rpcUrls: {
     default: {
       http: ["https://rpc.ankr.com/chiliz"],
@@ -23,9 +24,9 @@ export const chilizChain = {
       http: ["https://rpc.ankr.com/chiliz"],
     },
   },
-  blockExplorers: {
-    default: { name: "ChilizScan", url: "https://chiliscan.com" },
-  },
+  blockExplorers: [
+    { name: "ChilizScan", url: "https://chiliscan.com" },
+  ],
 };
 
 // Chiliz Spicy Testnet configuration
