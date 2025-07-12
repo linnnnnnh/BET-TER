@@ -80,6 +80,21 @@ export default function HeatmapPage() {
     }
   }, [account])
 
+  // Load game entry status from localStorage
+  useEffect(() => {
+    if (account?.address) {
+      const savedGameEntry = localStorage.getItem(`gameEntry_${account.address}`)
+      if (savedGameEntry === 'purchased' || savedGameEntry === 'video') {
+        setGameEntry(savedGameEntry as 'purchased' | 'video')
+        // If user has a valid entry, they haven't played yet
+        setHasPlayedGame(false)
+      } else {
+        // No valid entry means they either haven't gained access or have already played
+        setGameEntry('none')
+      }
+    }
+  }, [account])
+
   // Game timer effect
   useEffect(() => {
     // No timer needed for card game - instant selection
@@ -123,7 +138,7 @@ export default function HeatmapPage() {
         
         // Set game as completed and add reward
         setTimeout(() => {
-          setHasPlayedGame(true)
+          completeGame()
           // TODO: Add reward to user's account
           // await contract.addReward(account?.address, "PSG_MERCHANDISE")
         }, 2000)
@@ -135,7 +150,7 @@ export default function HeatmapPage() {
         
         // Offer AI video compensation
         setTimeout(() => {
-          setHasPlayedGame(true)
+          completeGame()
         }, 2000)
       }
     }, 1000)
@@ -194,9 +209,15 @@ export default function HeatmapPage() {
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       setGameEntry('purchased')
+      // Save to localStorage for header ticket count
+      if (account?.address) {
+        localStorage.setItem(`gameEntry_${account.address}`, 'purchased')
+        // Dispatch custom event to update header
+        window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
+      }
       toast({
         title: "Entry purchased!",
-        description: `You can now play the heatmap game. Paid with $${paymentMethod}`,
+        description: `You can now play the halftime game. Paid with $${paymentMethod}`,
       })
 
     } catch (error) {
@@ -244,6 +265,12 @@ export default function HeatmapPage() {
       
       if (score >= 1) { // At least 1 correct answer to pass
         setGameEntry('video')
+        // Save to localStorage for header ticket count
+        if (account?.address) {
+          localStorage.setItem(`gameEntry_${account.address}`, 'video')
+          // Dispatch custom event to update header
+          window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
+        }
         toast({
           title: `Quiz completed! Score: ${score}/2`,
           description: "You can now play the heatmap game",
@@ -281,6 +308,12 @@ export default function HeatmapPage() {
       description: `${tokenName} purchased successfully. You can now play the game!`,
     })
     setGameEntry('purchased')
+    // Save to localStorage for header ticket count
+    if (account?.address) {
+      localStorage.setItem(`gameEntry_${account.address}`, 'purchased')
+      // Dispatch custom event to update header
+      window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
+    }
   }
 
   const handlePurchaseCancel = () => {
@@ -305,6 +338,20 @@ export default function HeatmapPage() {
   const ShowQuizAfterVideo = () => {
     setVideoWatched(true)
     setIsPlayingVideo(false)
+  }
+
+  const completeGame = () => {
+    setHasPlayedGame(true)
+    // Decrement tickets and update localStorage
+    if (account?.address) {
+      const gameEntry = localStorage.getItem(`gameEntry_${account.address}`)
+      if (gameEntry === 'purchased' || gameEntry === 'video') {
+        // Remove the game entry to decrement tickets
+        localStorage.removeItem(`gameEntry_${account.address}`)
+        // Dispatch event to update header
+        window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
+      }
+    }
   }
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,7 +456,7 @@ export default function HeatmapPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl font-bold text-gradient-psg mb-4"
         >
-          Heatmap Game
+          halftime Game
         </motion.h1>
         <p className="text-gray-600 dark:text-gray-300">
           Interactive halftime mini-game
@@ -431,14 +478,29 @@ export default function HeatmapPage() {
           </div>
         </div>
         
-        {hasWonPrediction ? (
+{hasWonPrediction ? (
           <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
             <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
               <Trophy className="h-5 w-5" />
               <span className="font-medium">Congratulations! You won the prediction!</span>
             </div>
             <p className="text-green-600 dark:text-green-400 text-sm mt-1">
-              You have free access to the heatmap game
+              You have free access to the halftime game
+            </p>
+          </div>
+        ) : canPlayGame ? (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+            <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
+              <CheckCircle className="h-5 w-5" />
+              <span className="font-medium">
+                {gameEntry === 'purchased' 
+                  ? 'Entry purchased successfully!' 
+                  : 'Video quiz completed successfully!'
+                }
+              </span>
+            </div>
+            <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
+              You earned 1 participation ticket and can now play the halftime game
             </p>
           </div>
         ) : (
@@ -454,8 +516,8 @@ export default function HeatmapPage() {
         )}
       </motion.div>
 
-      {/* Entry Options (if didn't win prediction) */}
-      {!hasWonPrediction && gameEntry === 'none' && (
+      {/* Entry Options (if didn't win prediction and hasn't gained access) */}
+      {!hasWonPrediction && !canPlayGame && gameEntry === 'none' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -472,7 +534,7 @@ export default function HeatmapPage() {
                   <h3 className="text-xl font-semibold">Purchase Entry</h3>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Get instant access to the heatmap game
+                  Get instant access to the halftime game
                 </p>
                 <div className="mb-4">
                   <span className="text-2xl font-bold text-psg-blue">€1</span>
@@ -533,7 +595,7 @@ export default function HeatmapPage() {
                 </p>
                 <div className="mb-4">
                   <span className="text-green-600 font-semibold">FREE</span>
-                  <span className="text-gray-500 ml-2">~2 minutes</span>
+                  <span className="text-gray-500 ml-2">~2 minutes maximum</span>
                 </div>
               </div>
               
@@ -563,7 +625,7 @@ export default function HeatmapPage() {
                       ></iframe>
                     </div>
                     <p className="text-xs text-gray-500">Watch the full video to continue</p>
-                    <p className="text-xs text-green-600 mt-1">💡 For demo: This video showcases fan engagement technology</p>
+                    
                     
                     {/* Demo fallback button */}
                     <Button
@@ -572,7 +634,7 @@ export default function HeatmapPage() {
                       size="sm"
                       className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
                     >
-                      Answer Quiz
+                      Done ! Answer Quiz
                     </Button>
                   </div>
                 )}

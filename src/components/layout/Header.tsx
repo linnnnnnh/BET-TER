@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useActiveAccount } from 'thirdweb/react'
 import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
@@ -8,6 +8,32 @@ export default function Header() {
   const account = useActiveAccount()
   const [showMenu, setShowMenu] = useState(false)
   const [isDark, setIsDark] = useState(true)
+  const [freeTickets, setFreeTickets] = useState(0)
+
+  // Check for game entry status in localStorage to update tickets
+  useEffect(() => {
+    const updateTickets = () => {
+      if (account) {
+        const gameEntry = localStorage.getItem(`gameEntry_${account.address}`)
+        if (gameEntry === 'purchased' || gameEntry === 'video') {
+          setFreeTickets(1)
+        } else {
+          setFreeTickets(0)
+        }
+      } else {
+        setFreeTickets(0)
+      }
+    }
+
+    updateTickets()
+    
+    // Listen for custom event when game entry is updated
+    window.addEventListener('gameEntryUpdated', updateTickets)
+    
+    return () => {
+      window.removeEventListener('gameEntryUpdated', updateTickets)
+    }
+  }, [account])
 
 
   const toggleDarkMode = () => {
@@ -19,10 +45,6 @@ export default function Header() {
       localStorage.setItem('theme', 'dark')
     }
     setIsDark(!isDark)
-  }
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
 
   return (
@@ -46,7 +68,7 @@ export default function Header() {
               <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg">
                 <Ticket className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  0 Free Tickets
+                  {freeTickets} Free Ticket{freeTickets !== 1 ? 's' : ''}
                 </span>
               </div>
             )}
@@ -116,7 +138,7 @@ export default function Header() {
               <div className="flex items-center justify-center space-x-2 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg mb-4">
                 <Ticket className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <span className="font-medium text-blue-700 dark:text-blue-300">
-                  3 Free Play Tickets Available
+                  {freeTickets} Free Ticket{freeTickets !== 1 ? 's' : ''} Available
                 </span>
               </div>
             )}

@@ -14,7 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/predictions" element={<PredictionPage />} />
-          <Route path="/heatmap" element={<HeatmapPage />} />
+          <Route path="/halftime" element={<HeatmapPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Routes>

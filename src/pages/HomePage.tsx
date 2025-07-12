@@ -100,7 +100,7 @@ export default function HomePage() {
                 <div className="bg-chiliz-red text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center mx-auto mb-2">2</div>
                 <h3 className="font-semibold text-sm mb-1">Play</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Use tickets in heatmap game
+                  Use tickets in halftime game
                 </p>
               </div>
 
@@ -186,7 +186,7 @@ export default function HomePage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Phase 2: Heatmap Game</h4>
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Phase 2: halftime Game</h4>
                 <span className="text-sm text-gray-500 dark:text-gray-400">UPCOMING</span>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">20:45 - 21:00 (Halftime)</p>
@@ -223,7 +223,7 @@ export default function HomePage() {
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-green-700 dark:text-green-300">Predictions Are Open!</h3>
             <p className="text-green-600 dark:text-green-400 text-sm">
-              Make your predictions now and earn Free Play Tickets for the heatmap game
+              Make your predictions now and earn Free Play Tickets for the halftime game
             </p>
           </div>
           <div className="text-right">
@@ -263,7 +263,7 @@ export default function HomePage() {
                   <p className="text-gray-600 dark:text-gray-300">
                     PSG Fan Hub is a two-phase engagement platform designed for match days. 
                     Predict match outcomes to earn Free Play Tickets, then use them in our 
-                    exciting heatmap mini-game to win exclusive rewards!
+                    exciting halftime mini-game to win exclusive rewards!
                   </p>
                 </div>
 
@@ -289,7 +289,7 @@ export default function HomePage() {
                     <div className="w-8 h-8 bg-chiliz-red rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-bold">2</span>
                     </div>
-                    <h3 className="font-semibold text-lg">Heatmap Game</h3>
+                    <h3 className="font-semibold text-lg">halftime Game</h3>
                   </div>
                   <div className="ml-10 space-y-2">
                     <p className="text-gray-600 dark:text-gray-300">📅 <strong>When:</strong> During halftime (15 minutes)</p>
@@ -334,7 +334,7 @@ export default function HomePage() {
                   <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
                     <li>• You must be logged in to participate</li>
                     <li>• Predictions close at match kickoff</li>
-                    <li>• Heatmap game is available only during halftime</li>
+                    <li>• halftime game is available only during halftime</li>
                     <li>• Winners are randomly selected from all participants</li>
                     <li>• Rewards can be claimed in the "My Rewards" section</li>
                     <li>• All transactions are secured on the Chiliz blockchain</li>
