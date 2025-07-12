@@ -1,0 +1,29 @@
+{
+  "name": "bet-ter",
+  "version": "1.0.0",
+  "description": "**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/linnnnnnh/BET-TER.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/linnnnnnh/BET-TER/issues"
+  },
+  "homepage": "https://github.com/linnnnnnh/BET-TER#readme",
+  "dependencies": {
+    "@pythnetwork/entropy-sdk-solidity": "^2.0.0",
+    "@pythnetwork/pyth-sdk-solidity": "^4.2.0"
+  }
+}
