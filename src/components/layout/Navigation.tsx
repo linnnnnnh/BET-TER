@@ -3,8 +3,8 @@ import { Home, Target, Grid3X3, Gift, User } from 'lucide-react'
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/predictions', icon: Target, label: 'Before The Match' },
-  { href: '/heatmap', icon: Grid3X3, label: 'Halftime Game' },
+  { href: '/predictions', icon: Target, label: 'Before Match' },
+  { href: '/halftime', icon: Grid3X3, label: 'Halftime Game' },
   { href: '/rewards', icon: Gift, label: 'Rewards' },
   { href: '/profile', icon: User, label: 'Profile' },
 ]

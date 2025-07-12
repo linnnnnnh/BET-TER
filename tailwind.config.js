@@ -67,6 +67,10 @@ export default {
           dark: "#1A1A1A",
         }
       },
+      backgroundImage: {
+        'psg-chiliz-gradient': 'linear-gradient(135deg, #e0f2fe 0%, #fce4ec 25%, #fff3e0 50%, #f3e5f5 75%, #e8eaf6 100%)',
+        'psg-chiliz-gradient-dark': 'linear-gradient(135deg, #0d1421 0%, #1a0e13 25%, #1a1209 50%, #1a0f1a 75%, #0f1419 100%)',
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

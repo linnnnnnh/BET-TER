@@ -1,15 +1,50 @@
-import { ConnectButton, useActiveAccount } from 'thirdweb/react'
+import { useState, useEffect } from 'react'
+import { useActiveAccount } from 'thirdweb/react'
+import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
-import { Button } from '../ui/button'
-import { Menu, Bell, Ticket } from 'lucide-react'
-import { useState } from 'react'
+import { Menu, X, Ticket, Moon, Sun } from 'lucide-react'
 
 export default function Header() {
   const account = useActiveAccount()
   const [showMenu, setShowMenu] = useState(false)
+  const [isDark, setIsDark] = useState(true)
+  const [freeTickets, setFreeTickets] = useState(0)
 
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  // Check for game entry status in localStorage to update tickets
+  useEffect(() => {
+    const updateTickets = () => {
+      if (account) {
+        const gameEntry = localStorage.getItem(`gameEntry_${account.address}`)
+        if (gameEntry === 'purchased' || gameEntry === 'video') {
+          setFreeTickets(1)
+        } else {
+          setFreeTickets(0)
+        }
+      } else {
+        setFreeTickets(0)
+      }
+    }
+
+    updateTickets()
+    
+    // Listen for custom event when game entry is updated
+    window.addEventListener('gameEntryUpdated', updateTickets)
+    
+    return () => {
+      window.removeEventListener('gameEntryUpdated', updateTickets)
+    }
+  }, [account])
+
+
+  const toggleDarkMode = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    } else {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    }
+    setIsDark(!isDark)
   }
 
   return (
@@ -18,102 +53,105 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-psg rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">P</span>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-xl font-bold text-gradient-psg">PSG Fan Hub</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Powered by Chiliz</p>
-            </div>
+            <img
+              src="/src/assets/better_icon.png"
+              alt="PSG Logo"
+              className="w-8 h-8 rounded-lg object-cover"
+            />
+            <span className="font-bold text-lg text-gray-900 dark:text-white">BET-TER</span>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center space-x-2">
-            {/* Tickets Display - Desktop */}
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-4">
+            {/* Tickets Display */}
             {account && (
-              <div className="hidden md:flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+              <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg">
                 <Ticket className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">3</span>
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {freeTickets} Free Ticket{freeTickets !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
 
-            {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-chiliz-red rounded-full animate-pulse"></span>
-            </Button>
-
-            {/* Menu Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setShowMenu(!showMenu)}
-              className="md:hidden"
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <Menu className="h-5 w-5" />
-            </Button>
+              {isDark ? (
+                <Sun className="h-5 w-5 text-yellow-500" />
+              ) : (
+                <Moon className="h-5 w-5 text-gray-600" />
+              )}
+            </button>
 
-            {/* User Authentication - Desktop */}
-            <div className="hidden md:block">
-              <ConnectButton 
-                client={client}
-                theme="light"
-                connectButton={{
-                  label: "Log In",
-                  style: {
-                    background: "linear-gradient(135deg, #CC3340 0%, #FF6B35 100%)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "1rem",
-                    fontWeight: "500",
-                  }
-                }}
-                connectModal={{
-                  title: "Log In to PSG Fan Hub",
-                  titleIcon: "https://psg-fan-platform.app/logo.png",
-                }}
-              />
-            </div>
+            {/* User Authentication */}
+            <ConnectButton
+              client={client}
+              connectButton={{
+                label: "Log In",
+              }}
+              connectModal={{
+                title: "Log In to PSG Fan Hub",
+              }}
+              detailsButton={{
+                displayBalanceToken: {
+                  // You can specify tokens to display
+                }
+              }}
+            />
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* Dark Mode Toggle Mobile */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800"
+            >
+              {isDark ? (
+                <Sun className="h-5 w-5 text-yellow-500" />
+              ) : (
+                <Moon className="h-5 w-5 text-gray-600" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800"
+            >
+              {showMenu ? (
+                <X className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              ) : (
+                <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              )}
+            </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {showMenu && (
           <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="space-y-3">
-              {/* Mobile Tickets Display */}
-              {account && (
-                <div className="flex items-center justify-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 rounded-lg">
-                  <Ticket className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">3 Free Play Tickets</span>
-                </div>
-              )}
-
-              {account ? (
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                    Connected: {formatAddress(account.address)}
-                  </p>
-                </div>
-              ) : null}
-              <ConnectButton 
+            {/* Mobile Tickets */}
+            {account && (
+              <div className="flex items-center justify-center space-x-2 bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg mb-4">
+                <Ticket className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <span className="font-medium text-blue-700 dark:text-blue-300">
+                  {freeTickets} Free Ticket{freeTickets !== 1 ? 's' : ''} Available
+                </span>
+              </div>
+            )}
+            
+            {/* Mobile Auth */}
+            <div className="flex justify-center">
+              <ConnectButton
                 client={client}
-                theme="light"
                 connectButton={{
                   label: account ? "Logged In" : "Log In",
-                  style: {
-                    background: "linear-gradient(135deg, #CC3340 0%, #FF6B35 100%)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "0.5rem",
-                    padding: "0.75rem 1rem",
-                    fontWeight: "500",
-                    width: "100%",
-                  }
                 }}
                 connectModal={{
                   title: "Log In to PSG Fan Hub",
-                  titleIcon: "https://psg-fan-platform.app/logo.png",
                 }}
               />
             </div>
