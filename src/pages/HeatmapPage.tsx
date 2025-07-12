@@ -109,24 +109,24 @@ export default function HeatmapPage() {
     }, 1000)
   }
 
-  const handlePurchaseEntry = async () => {
+  const handlePurchaseEntry = async (paymentMethod: 'CHZ' | 'PSG') => {
     setIsSubmittingEntry(true)
     try {
-      // TODO: Implement fiat on-ramp integration
-      // await fiatOnRamp.purchaseGameEntry()
+      // TODO: Implement fiat on-ramp integration with specific token
+      // await fiatOnRamp.purchaseGameEntry(paymentMethod)
       
-      // Simulate purchase
+      // Simulate purchase with specific payment method
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       setGameEntry('purchased')
       toast({
         title: "Entry purchased!",
-        description: "You can now play the heatmap game",
+        description: `You can now play the heatmap game. Paid with $${paymentMethod}`,
       })
     } catch (error) {
       toast({
         title: "Purchase failed",
-        description: "There was an error processing your purchase",
+        description: `There was an error processing your $${paymentMethod} payment`,
         variant: "destructive",
       })
     } finally {
@@ -249,27 +249,49 @@ export default function HeatmapPage() {
         >
           {/* Purchase Entry */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
-            <div className="flex items-center space-x-2 mb-4">
-              <CreditCard className="h-6 w-6 text-psg-blue" />
-              <h3 className="text-xl font-semibold">Purchase Entry</h3>
+            <div className="flex items-start justify-between">
+              {/* Left Column - Content */}
+              <div className="flex-1 mr-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <CreditCard className="h-6 w-6 text-psg-blue" />
+                  <h3 className="text-xl font-semibold">Purchase Entry</h3>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  Get instant access to the heatmap game
+                </p>
+                <div className="mb-4">
+                  <span className="text-2xl font-bold text-psg-blue">€1</span>
+                  <span className="text-gray-500 ml-2">One-time payment</span>
+                </div>
+              </div>
+              
+              {/* Right Column - Payment Buttons */}
+              <div className="flex flex-col space-y-3 min-w-[140px]">
+                <span className='font-semibold'> Pay with </span>
+                <Button
+                  onClick={() => handlePurchaseEntry('CHZ')}
+                  disabled={!account || isSubmittingEntry}
+                  className="w-full bg-chiliz-red hover:bg-chiliz-red/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                >
+                  <span className="font-bold">$CHZ</span>
+                </Button>
+                
+                <Button
+                  onClick={() => handlePurchaseEntry('PSG')}
+                  disabled={!account || isSubmittingEntry}
+                  className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                >
+                  <span className="font-bold">$PSG</span>
+                </Button>
+                
+                {isSubmittingEntry && (
+                  <p className="text-xs text-gray-500 text-center">Processing...</p>
+                )}
+              </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Get instant access to the heatmap game
-            </p>
-            <div className="mb-4">
-              <span className="text-2xl font-bold text-psg-blue">€1</span>
-              <span className="text-gray-500 ml-2">One-time payment</span>
-            </div>
-            <Button
-              onClick={handlePurchaseEntry}
-              disabled={!account || isSubmittingEntry}
-              className="w-full bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmittingEntry ? "Processing..." : "Purchase Now"}
-            </Button>
             
             {!account && (
-              <p className="text-sm text-red-500 mt-2 text-center">
+              <p className="text-sm text-red-500 mt-4 text-center">
                 Log in to purchase entry
               </p>
             )}
@@ -277,27 +299,36 @@ export default function HeatmapPage() {
 
           {/* Watch Video */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
-            <div className="flex items-center space-x-2 mb-4">
-              <Play className="h-6 w-6 text-green-600" />
-              <h3 className="text-xl font-semibold">Watch & Learn</h3>
+            <div className="flex items-start justify-between">
+              {/* Left Column - Content */}
+              <div className="flex-1 mr-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Play className="h-6 w-6 text-green-600" />
+                  <h3 className="text-xl font-semibold">Watch & Learn</h3>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  Watch a short partner video and answer 2 quick questions
+                </p>
+                <div className="mb-4">
+                  <span className="text-green-600 font-semibold">FREE</span>
+                  <span className="text-gray-500 ml-2">~2 minutes</span>
+                </div>
+              </div>
+              
+              {/* Right Column - Video Button */}
+              <div className="flex flex-col justify-center min-w-[140px]">
+                <Button
+                  onClick={handleWatchVideo}
+                  disabled={!account || isPlayingVideo}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPlayingVideo ? "Playing..." : "Start Video"}
+                </Button>
+              </div>
             </div>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Watch a short partner video and answer 2 quick questions
-            </p>
-            <div className="mb-4">
-              <span className="text-green-600 font-semibold">FREE</span>
-              <span className="text-gray-500 ml-2">~2 minutes</span>
-            </div>
-            <Button
-              onClick={handleWatchVideo}
-              disabled={!account || isPlayingVideo}
-              className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isPlayingVideo ? "Playing Video..." : "Start Video"}
-            </Button>
             
             {!account && (
-              <p className="text-sm text-red-500 mt-2 text-center">
+              <p className="text-sm text-red-500 mt-4 text-center">
                 Log in to watch video
               </p>
             )}
