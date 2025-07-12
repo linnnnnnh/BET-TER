@@ -9,9 +9,11 @@ import { getEngagementContract, contractUtils } from '@/lib/contract'
 
 export default function PredictionPage() {
   const account = useActiveAccount()
-  const [psgScore, setPsgScore] = useState('')
-  const [lyonScore, setLyonScore] = useState('')
+  const [team1Score, setTeam1Score] = useState('')
+  const [team2Score, setTeam2Score] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [predictionSubmitted, setPredictionSubmitted] = useState(false)
+  const [isCheckingResult, setIsCheckingResult] = useState(false)
   const [currentCampaignId, setCurrentCampaignId] = useState<number>(1) // Default to campaign 1
 
   // Get current campaign ID from smart contract
@@ -31,6 +33,46 @@ export default function PredictionPage() {
     params: [BigInt(actualCurrentCampaignId)]
   })
 
+  // Extract campaign data
+  const team1 = campaignData?.[1] || "Paris SG"
+  const team2 = campaignData?.[2] || "Olympique Lyon"
+  const startTimePredictionGame = Number(campaignData?.[3] || 0)
+  const endTimePredictionGame = Number(campaignData?.[4] || 0)
+  const startTimeSecondHalftimeGame = Number(campaignData?.[5] || 0)
+  const endTimeSecondHalftimeGame = Number(campaignData?.[6] || 0)
+  const isActive = campaignData?.[7] || false
+
+  // Helper function to get team abbreviation
+  const getTeamAbbreviation = (teamName: string) => {
+    if (teamName.toLowerCase().includes('psg') || teamName.toLowerCase().includes('paris')) return 'PSG'
+    if (teamName.toLowerCase().includes('lyon') || teamName.toLowerCase().includes('ol')) return 'OL'
+    if (teamName.toLowerCase().includes('marseille') || teamName.toLowerCase().includes('om')) return 'OM'
+    if (teamName.toLowerCase().includes('monaco')) return 'MON'
+    // Default to first 3 characters
+    return teamName.substring(0, 3).toUpperCase()
+  }
+
+  // Format timestamp to readable date
+  const formatMatchTime = (timestamp: number) => {
+    if (timestamp === 0) return { date: "July 13, 2025", time: "20:00 CET" }
+    const date = new Date(timestamp * 1000)
+    return {
+      date: date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      time: date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZoneName: 'short'
+      })
+    }
+  }
+
+  const matchTime = formatMatchTime(startTimePredictionGame)
+  const predictionCloseTime = formatMatchTime(endTimePredictionGame)
+
   // Smart contract transaction hook
   const { mutate: sendTransaction } = useSendTransaction()
 
@@ -43,24 +85,37 @@ export default function PredictionPage() {
     }
   }, [nextCampaignId])
 
+  // Check if user has already submitted prediction for this campaign
+  useEffect(() => {
+    if (account?.address && actualCurrentCampaignId) {
+      // Storage key format: prediction_submitted_{walletAddress}_{campaignId}
+      const storageKey = `prediction_submitted_${account.address}_${actualCurrentCampaignId}`
+      const hasSubmitted = localStorage.getItem(storageKey) === 'true'
+      setPredictionSubmitted(hasSubmitted)
+    } else {
+      // Reset state when wallet is disconnected
+      setPredictionSubmitted(false)
+    }
+  }, [account?.address, actualCurrentCampaignId])
+
   // Debug logging
   useEffect(() => {
-    console.log('Campaign Debug Info:', {
-      currentCampaignId,
-      actualCurrentCampaignId,
-      nextCampaignId: nextCampaignId ? Number(nextCampaignId) : 'loading',
-      campaignData,
-      campaignActive: campaignData ? campaignData[7] : 'loading'
-    })
+    // console.log('Campaign Debug Info:', {
+    //   currentCampaignId,
+    //   actualCurrentCampaignId,
+    //   nextCampaignId: nextCampaignId ? Number(nextCampaignId) : 'loading',
+    //   campaignData,
+    //   campaignActive: campaignData ? campaignData[7] : 'loading'
+    // })
   }, [currentCampaignId, actualCurrentCampaignId, nextCampaignId, campaignData])
 
-  const handleScoreChange = (team: 'psg' | 'lyon', value: string) => {
+  const handleScoreChange = (team: 'team1' | 'team2', value: string) => {
     // Only allow numbers 0-9
     if (value === '' || /^[0-9]$/.test(value)) {
-      if (team === 'psg') {
-        setPsgScore(value)
+      if (team === 'team1') {
+        setTeam1Score(value)
       } else {
-        setLyonScore(value)
+        setTeam2Score(value)
       }
     }
   }
@@ -75,7 +130,7 @@ export default function PredictionPage() {
       return
     }
 
-    if (psgScore === '' || lyonScore === '') {
+    if (team1Score === '' || team2Score === '') {
       toast({
         title: "Incomplete prediction",
         description: "Please enter scores for both teams",
@@ -170,11 +225,11 @@ export default function PredictionPage() {
         return
       }
 
-      const team1Score = parseInt(psgScore)
-      const team2Score = parseInt(lyonScore)
+      const team1ScoreInt = parseInt(team1Score)
+      const team2ScoreInt = parseInt(team2Score)
       
       // Validate score inputs
-      if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0 || team1Score > 9 || team2Score > 9) {
+      if (isNaN(team1ScoreInt) || isNaN(team2ScoreInt) || team1ScoreInt < 0 || team2ScoreInt < 0 || team1ScoreInt > 9 || team2ScoreInt > 9) {
         toast({
           title: "Invalid scores",
           description: "Please enter valid scores (0-9)",
@@ -185,16 +240,16 @@ export default function PredictionPage() {
       
       console.log('Submitting prediction:', {
         campaignId: campaignIdToUse,
-        team1Score,
-        team2Score,
+        team1Score: team1ScoreInt,
+        team2Score: team2ScoreInt,
         freshNextCampaignId: Number(freshNextCampaignId)
       })
       
       // Prepare the smart contract call with fresh campaign ID
       const transaction = contractUtils.submitPredictions(
         campaignIdToUse,
-        team1Score,
-        team2Score
+        team1ScoreInt,
+        team2ScoreInt
       )
       
       // Submit the transaction
@@ -202,12 +257,19 @@ export default function PredictionPage() {
         onSuccess: (result) => {
           toast({
             title: "Prediction submitted!",
-            description: `Your halftime prediction: PSG ${psgScore}-${lyonScore} Lyon (Campaign ${campaignIdToUse})`,
+            description: `Your halftime prediction: ${team1} ${team1Score}-${team2Score} ${team2} (Campaign ${campaignIdToUse})`,
           })
           
-          // Reset form
-          setPsgScore('')
-          setLyonScore('')
+          // Reset form and mark as submitted
+          setTeam1Score('')
+          setTeam2Score('')
+          setPredictionSubmitted(true)
+          
+          // Store in localStorage for persistence
+          if (account?.address) {
+            const storageKey = `prediction_submitted_${account.address}_${campaignIdToUse}`
+            localStorage.setItem(storageKey, 'true')
+          }
           
           console.log('Transaction successful:', result)
         },
@@ -215,7 +277,6 @@ export default function PredictionPage() {
           console.error('Transaction failed:', error)
           console.error('Error details:', {
             message: error.message,
-            cause: error.cause,
             stack: error.stack,
             name: error.name
           })
@@ -253,7 +314,77 @@ export default function PredictionPage() {
     }
   }
 
-  const isValidPrediction = psgScore !== '' && lyonScore !== ''
+  const handleCheckPredictionResult = async () => {
+    if (!account) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to check your prediction result",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCheckingResult(true)
+    
+    try {
+      // Fresh fetch of campaign ID
+      const contract = getEngagementContract()
+      const freshNextCampaignId = await readContract({
+        contract,
+        method: 'function nextCampaignId() view returns (uint256)',
+        params: []
+      })
+      const campaignIdToUse = Number(freshNextCampaignId) - 1
+
+      console.log('Checking prediction result for campaign:', campaignIdToUse)
+
+      // Call checkPredictionResult function
+      const transaction = contractUtils.checkPredictionResult(campaignIdToUse)
+      
+      // Submit the transaction
+      sendTransaction(transaction, {
+        onSuccess: (result) => {
+          toast({
+            title: "Prediction result checked!",
+            description: "Your prediction result has been processed. Check your free tickets!",
+          })
+          
+          console.log('Check result transaction successful:', result)
+        },
+        onError: (error) => {
+          console.error('Check result transaction failed:', error)
+          
+          let errorMessage = "There was an error checking your prediction result. Please try again."
+          
+          if (error.message.includes('NoTicketToCheck')) {
+            errorMessage = "You don't have any prediction to check for this campaign."
+          } else if (error.message.includes('GameNotResolved')) {
+            errorMessage = "The game results haven't been resolved yet. Please wait for the match to end."
+          } else if (error.message.includes('AlreadyChecked')) {
+            errorMessage = "You have already checked your prediction result for this campaign."
+          }
+          
+          toast({
+            title: "Check failed",
+            description: errorMessage,
+            variant: "destructive",
+          })
+        }
+      })
+      
+    } catch (error) {
+      console.error('Error checking prediction result:', error)
+      toast({
+        title: "Check failed",
+        description: "There was an error checking your prediction result. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCheckingResult(false)
+    }
+  }
+
+  const isValidPrediction = team1Score !== '' && team2Score !== ''
 
   return (
     <div className="space-y-6">
@@ -278,15 +409,15 @@ export default function PredictionPage() {
         className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow border-l-4 border-l-psg-blue"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">PSG vs Lyon</h2>
+          <h2 className="text-xl font-semibold">{team1} vs {team2}</h2>
           <div className="text-right">
             <div className="flex items-center space-x-1 text-gray-600 dark:text-gray-300">
               <Calendar className="h-4 w-4" />
-              <span className="text-sm">July 13, 2025</span>
+              <span className="text-sm">{matchTime.date}</span>
             </div>
             <div className="flex items-center space-x-1 text-psg-blue">
               <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium">20:00 CET</span>
+              <span className="text-sm font-medium">{matchTime.time}</span>
             </div>
           </div>
         </div>
@@ -294,7 +425,7 @@ export default function PredictionPage() {
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
           <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
             <Target className="h-5 w-5" />
-            <span className="font-medium">Predictions close at 19:00 CET</span>
+            <span className="font-medium">Predictions close at {predictionCloseTime.time}</span>
           </div>
           <p className="text-blue-600 dark:text-blue-400 text-sm mt-1">
             Make your prediction before the match starts to earn Free Play Tickets!
@@ -321,39 +452,39 @@ export default function PredictionPage() {
         {/* Score Input */}
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 mb-6">
           <div className="flex items-center justify-center">
-            {/* PSG Score */}
+            {/* Team 1 Score */}
             <div className="flex flex-col justify-center text-center items-center">
               <div className="w-20 h-20 bg-psg-blue rounded-full flex items-center justify-center mb-3 shadow-lg">
-                <span className="text-white text-lg font-bold">PSG</span>
+                <span className="text-white text-lg font-bold">{getTeamAbbreviation(team1)}</span>
               </div>
               <input
                 type="text"
-                value={psgScore}
-                onChange={(e) => handleScoreChange('psg', e.target.value)}
+                value={team1Score}
+                onChange={(e) => handleScoreChange('team1', e.target.value)}
                 placeholder="0"
                 className="w-16 h-16 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:border-psg-blue focus:outline-none transition-colors"
                 maxLength={1}
               />
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">Paris SG</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{team1}</p>
             </div>
 
             {/* VS Separator */}
             <div className="font-bold text-gray-400 dark:text-gray-500" style={{ marginRight: '5em', marginLeft: '5em' }}>-</div>
 
-            {/* Lyon Score */}
+            {/* Team 2 Score */}
             <div className="flex flex-col justif-center text-center items-center">
               <div className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center mb-3 shadow-lg">
-                <span className="text-white text-lg font-bold">OL</span>
+                <span className="text-white text-lg font-bold">{getTeamAbbreviation(team2)}</span>
               </div>
               <input
                 type="text"
-                value={lyonScore}
-                onChange={(e) => handleScoreChange('lyon', e.target.value)}
+                value={team2Score}
+                onChange={(e) => handleScoreChange('team2', e.target.value)}
                 placeholder="0"
                 className="w-16 h-16 text-center text-2xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:border-psg-blue focus:outline-none transition-colors"
                 maxLength={1}
               />
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">Olympique Lyon</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{team2}</p>
             </div>
           </div>
 
@@ -361,23 +492,28 @@ export default function PredictionPage() {
           {isValidPrediction && (
             <div className="text-center mt-6 p-4 bg-psg-blue/10 rounded-lg">
               <p className="text-lg font-semibold text-psg-blue">
-                Your prediction: PSG {psgScore}-{lyonScore} Lyon
+                Your prediction: {team1} {team1Score}-{team2Score} {team2}
               </p>
             </div>
           )}
         </div>
 
         {/* Submit Button */}
-        <div className="text-center">
+        <div className="text-center space-y-6">
           <Button
             onClick={handleSubmitPrediction}
-            disabled={!account || !isValidPrediction || isSubmitting}
+            disabled={!account || !isValidPrediction || isSubmitting || predictionSubmitted}
             className="bg-psg-blue hover:bg-psg-blue/90 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Submitting...
+              </>
+            ) : predictionSubmitted ? (
+              <>
+                <Trophy className="w-5 h-5 mr-2" />
+                Prediction Submitted ✓
               </>
             ) : (
               <>
@@ -386,6 +522,27 @@ export default function PredictionPage() {
               </>
             )}
           </Button>
+
+          {/* Check Prediction Result Button */}
+          {predictionSubmitted && (
+            <Button
+              onClick={handleCheckPredictionResult}
+              disabled={!account || isCheckingResult}
+              className="bg-psg-blue hover:bg-psg-blue/90 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCheckingResult ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <Target className="w-5 h-5 mr-2" />
+                  Check Prediction Result
+                </>
+              )}
+            </Button>
+          )}
           
           {!account && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
