@@ -6,6 +6,7 @@ import PredictionPage from './pages/PredictionPage'
 import HeatmapPage from './pages/HeatmapPage'
 import RewardsPage from './pages/RewardsPage'
 import ProfilePage from './pages/ProfilePage'
+
 import MultiModeChatWidget from './components/chat/MultiModeChatWidget'
 import { ChatProvider } from './providers/ChatProvider'
 
@@ -25,6 +26,16 @@ function App() {
         <MultiModeChatWidget />
         <Toaster />
       </ChatProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/predictions" element={<PredictionPage />} />
+          <Route path="/heatmap" element={<HeatmapPage />} />
+          <Route path="/rewards" element={<RewardsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Routes>
+      </Layout>
+      <Toaster />
     </Router>
   )
 }
