@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import {IEntropyConsumer} from "@pythnetwork/entropy-sdk-solidity/IEntropyConsumer.sol";
 import {IEntropy} from "@pythnetwork/entropy-sdk-solidity/IEntropy.sol";
+import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
 
 contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     //================================================
@@ -20,6 +21,10 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     error NoFreeTickets();
     error InsufficientChzSent();
     error RequestNotFound();
+    error AlreadyHasTicket();
+    error PredictionNotPlayed();
+    error GameNotResolved();
+    error PredictionNotWon();
 
     //================================================
     // Structs
@@ -33,20 +38,42 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
 
     struct Campaign {
         uint256 id;
-        uint256 startTime;
-        uint256 endTime;
+        string team1;
+        string team2;
+        uint256 startTimePredictionGame;
+        uint256 endTimePredictionGame;
+        uint256 startTimeSecondHalftimeGame;
+        uint256 endTimeSecondHalftimeGame;
         bool active;
         mapping(uint256 => uint256) prizeSupply; // prizeId => supply
         mapping(uint256 => uint256) prizeMinted; // prizeId => minted count
     }
 
-    struct PredictionMarket {
+    /// @dev Struct only used as input for createCampaign function
+    struct CampaignInput {
+        uint256 id;
+        string team1;
+        string team2;
+        uint256 startTimePredictionGame;
+        uint256 endTimePredictionGame;
+        uint256 startTimeSecondHalftimeGame;
+        uint256 endTimeSecondHalftimeGame;
+    }
+
+    struct PredictionGame {
         uint256 campaignId;
-        string[] questions; // e.g., "First goalscorer?"
-        // In a real-world scenario, answers would be more complex.
-        // For this example, we assume a simple index-based answer.
+        string question;
+        uint8 team1Score;
+        uint8 team2Score;
         bool resolved;
-        mapping(address => uint8[]) userPredictions;
+        mapping(address => Prediction) userPrediction;
+    }
+
+    /// @notice Score prediction of each team
+    struct Prediction {
+        bool played;
+        uint8 team1Score;
+        uint8 team2Score;
     }
 
     //================================================
@@ -54,19 +81,17 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     //================================================
 
     // --- Oracles & Configuration ---
-    IPyth private immutable i_pyth;
-    IEntropy private immutable i_entropy;
-    bytes32 private immutable i_entropyId;
-    bytes32 private immutable i_chzUsdPriceId;
-    uint64 private immutable i_subscriptionId;
-    bytes32 private immutable i_keyHash;
+    IPyth private immutable i_pyth; // 0x23f0e8FAeE7bbb405E7A7C3d60138FCfd43d7509
+    IEntropy private immutable i_entropy; // 0xD458261E832415CFd3BAE5E416FdF3230ce6F134
+    bytes32 private immutable i_chzUsdPriceId; // 0xe799f456b358a2534aa1b45141d454ac04b444ed23b1440b778549bb758f2b5c
 
     uint32 private constant CALLBACK_GAS_LIMIT = 200000;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
     address public trustedDataResolver; // Address authorized to resolve prediction markets
-    // Maximum age of the on-chain price in seconds
-    uint256 private constant MAX_PRICE_AGE = 60;
+    /// Maximum age of the on-chain price in seconds
+    /// @dev 48 hours is for testing purposes, for production use a lower value like 60 seconds
+    uint256 private constant MAX_PRICE_AGE = 172800; // 48 hours
 
     // --- Game State ---
     uint256 public nextCampaignId = 1;
@@ -78,20 +103,28 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     // --- Mappings ---
     mapping(uint256 => Campaign) public campaigns;
     mapping(uint256 => Prize) public prizes;
-    mapping(uint256 => PredictionMarket) public predictionMarkets;
+    mapping(uint256 => PredictionGame) public predictionGames;
     mapping(address => uint256) public userLoyaltyPoints;
-    mapping(address => uint256) public userFreeTickets;
+    mapping(address => bool) public userHasHalftimeTicket;
     mapping(uint64 => address) private s_randomnessRequests; // requestId => user address
 
     //================================================
     // Events
     //================================================
 
-    event CampaignCreated(uint256 indexed campaignId, uint256 startTime, uint256 endTime);
-    event PredictionMarketCreated(uint256 indexed campaignId);
-    event PredictionsSubmitted(address indexed user, uint256 indexed campaignId, uint8[] predictions);
-    event PredictionMarketResolved(uint256 indexed campaignId, address indexed resolver);
-    event TicketsAwarded(address indexed user, uint256 amount);
+    event CampaignCreated(
+        uint256 indexed campaignId,
+        string team1,
+        string team2,
+        uint256 startTimePredictionGame,
+        uint256 endTimePredictionGame,
+        uint256 startTimeSecondHalftimeGame,
+        uint256 endTimeSecondHalftimeGame
+    );
+    event PredictionGameCreated(uint256 indexed campaignId);
+    event PredictionsSubmitted(address indexed user, uint256 indexed campaignId, uint8 team1, uint8 team2);
+    event PredictionGameResolved(uint256 indexed campaignId, uint8 team1Score, uint8 team2Score);
+    event TicketsAwarded(address indexed user);
     event HeatmapPlayed(address indexed user, uint64 indexed requestId);
     event PrizeAwarded(address indexed user, uint256 prizeId, uint256 tokenId);
 
@@ -102,16 +135,12 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     constructor(
         address _pythAddress,
         bytes32 _chzUsdPriceId,
-        uint64 _subscriptionId,
-        bytes32 _keyHash,
         address _trustedDataResolver,
         address _initialOwner,
         address _entropyAddress
     ) ERC721("PSG Reward", "PSGR") Ownable(_initialOwner) {
         i_pyth = IPyth(_pythAddress);
         i_chzUsdPriceId = _chzUsdPriceId;
-        i_subscriptionId = _subscriptionId;
-        i_keyHash = _keyHash;
         trustedDataResolver = _trustedDataResolver;
         i_entropy = IEntropy(_entropyAddress);
 
@@ -124,13 +153,26 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     // Admin Functions
     //================================================
 
-    function createCampaign(uint256 _startTime, uint256 _endTime) external onlyOwner {
+    function createCampaign(CampaignInput memory _campaign) external onlyOwner {
         uint256 campaignId = nextCampaignId;
-        campaigns[campaignId].id = campaignId;
-        campaigns[campaignId].startTime = _startTime;
-        campaigns[campaignId].endTime = _endTime;
+        campaigns[campaignId].id = _campaign.id;
+        campaigns[campaignId].team1 = _campaign.team1;
+        campaigns[campaignId].team2 = _campaign.team2;
+        campaigns[campaignId].startTimePredictionGame = _campaign.startTimePredictionGame;
+        campaigns[campaignId].endTimePredictionGame = _campaign.endTimePredictionGame;
+        campaigns[campaignId].startTimeSecondHalftimeGame = _campaign.startTimeSecondHalftimeGame;
+        campaigns[campaignId].endTimeSecondHalftimeGame = _campaign.endTimeSecondHalftimeGame;
         nextCampaignId++;
-        emit CampaignCreated(campaignId, _startTime, _endTime);
+
+        emit CampaignCreated(
+            campaignId,
+            _campaign.team1,
+            _campaign.team2,
+            _campaign.startTimePredictionGame,
+            _campaign.endTimePredictionGame,
+            _campaign.startTimeSecondHalftimeGame,
+            _campaign.endTimeSecondHalftimeGame
+        );
     }
 
     function setCampaignActive(uint256 _campaignId, bool _isActive) external onlyOwner {
@@ -147,56 +189,123 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         nextPrizeId++;
     }
 
-    function createPredictionMarket(uint256 _campaignId, string[] memory _questions) external onlyOwner {
-        if (campaigns[_campaignId].startTime == 0) {
+    function createPredictionGame(uint256 _campaignId, string memory _question) external onlyOwner {
+        if (campaigns[_campaignId].startTimePredictionGame == 0) {
             revert CampaignDoesNotExist();
         }
-        predictionMarkets[_campaignId].campaignId = _campaignId;
-        predictionMarkets[_campaignId].questions = _questions;
-        emit PredictionMarketCreated(_campaignId);
+        predictionGames[_campaignId].campaignId = _campaignId;
+        predictionGames[_campaignId].question = _question;
+        emit PredictionGameCreated(_campaignId);
     }
 
-    function resolvePredictionsForUsers(uint256 _campaignId, address[] memory _users, uint256[] memory _ticketCounts)
-        external
-    {
+    /// @notice Called by the trustedDataResolver to provide the final score of the game
+    /// @param _campaignId The ID of the campaign
+    /// @param _team1Score The score of the first team
+    /// @param _team2Score The score of the second team
+    /// @dev The players who have submitted predictions will be able to check if they have won a ticket to the second halftime game
+    function resolvePredictionGame(uint256 _campaignId, uint8 _team1Score, uint8 _team2Score) external {
         if (msg.sender != trustedDataResolver) {
             revert Unauthorized();
         }
-        if (_users.length != _ticketCounts.length) {
-            revert InputArrayMismatch();
-        }
-        predictionMarkets[_campaignId].resolved = true;
-        for (uint256 i = 0; i < _users.length; i++) {
-            userFreeTickets[_users[i]] += _ticketCounts[i];
-            emit TicketsAwarded(_users[i], _ticketCounts[i]);
-        }
-        emit PredictionMarketResolved(_campaignId, msg.sender);
+
+        predictionGames[_campaignId].resolved = true;
+        predictionGames[_campaignId].team1Score = _team1Score;
+        predictionGames[_campaignId].team2Score = _team2Score;
+
+        emit PredictionGameResolved(_campaignId, _team1Score, _team2Score);
     }
 
     function updatePlayFee(uint256 _playFeeInUsdCents) external onlyOwner {
         playFeeInUsdCents = _playFeeInUsdCents;
     }
 
+    function updateTrustedDataResolver(address _newResolver) external onlyOwner {
+        require(_newResolver != address(0), "Invalid resolver address");
+        trustedDataResolver = _newResolver;
+    }
+
     //================================================
     // User Functions
     //================================================
 
-    function submitPredictions(uint256 _campaignId, uint8[] memory _predictions) external {
-        if (predictionMarkets[_campaignId].resolved) {
+    /// @notice Called by the players of the first halftime to play the prediction game
+    function submitPredictions(uint256 _campaignId, uint8 _team1Score, uint8 _team2Score) external {
+        if (predictionGames[_campaignId].resolved) {
             revert MarketAlreadyResolved();
         }
-        predictionMarkets[_campaignId].userPredictions[msg.sender] = _predictions;
-        emit PredictionsSubmitted(msg.sender, _campaignId, _predictions);
+        predictionGames[_campaignId].userPrediction[msg.sender] = Prediction(true, _team1Score, _team2Score);
+        emit PredictionsSubmitted(msg.sender, _campaignId, _team1Score, _team2Score);
     }
 
-    function playHeatmapWithTicket(uint256 _campaignId) external {
+    /// @notice Called by the players of the prediction game to check if they have won a ticket to the second halftime game
+    /// @return wonTicket True if the player has won a ticket, false otherwise
+    /// @dev This function checks if the player's prediction matches the final score of the game
+    /// @dev Revert if the user has not played the prediction game
+    function checkPredictionResult(uint256 _campaignId) external returns (bool) {
+        if (!predictionGames[_campaignId].resolved) {
+            revert GameNotResolved();
+        }
+        if (predictionGames[_campaignId].userPrediction[msg.sender].played == false) {
+            revert PredictionNotPlayed();
+        }
+        bool wonTicket = predictionGames[_campaignId].userPrediction[msg.sender].team1Score
+            == predictionGames[_campaignId].team1Score
+            && predictionGames[_campaignId].userPrediction[msg.sender].team2Score == predictionGames[_campaignId].team2Score;
+
+        if (wonTicket) {
+            userHasHalftimeTicket[msg.sender] = true;
+            emit TicketsAwarded(msg.sender);
+        }
+
+        return wonTicket;
+    }
+
+    /// @notice Called by the players who have lost the first halftime game and want to play the heatmap with a free ticket
+    /// @dev This function grants the player a free ticket if they have won a ticket to the second halftime game
+    /// @dev Revert if the player has not played the prediction game
+    /// @dev Revert if the player has already won a ticket
+    /// @dev Revert if the campaign is not active
+    function getSecondHalftimeFreeTicket(uint256 _campaignId) external {
         if (!campaigns[_campaignId].active) {
             revert CampaignNotActive();
         }
-        if (userFreeTickets[msg.sender] == 0) {
+        if (userHasHalftimeTicket[msg.sender]) {
+            revert AlreadyHasTicket();
+        }
+        if (!predictionGames[_campaignId].resolved) {
+            revert GameNotResolved();
+        }
+
+        // Verify user actually won their prediction
+        Prediction memory userPred = predictionGames[_campaignId].userPrediction[msg.sender];
+        if (!userPred.played) {
+            revert PredictionNotPlayed();
+        }
+
+        bool wonPrediction = userPred.team1Score == predictionGames[_campaignId].team1Score
+            && userPred.team2Score == predictionGames[_campaignId].team2Score;
+
+        if (!wonPrediction) {
+            revert PredictionNotWon();
+        }
+
+        userHasHalftimeTicket[msg.sender] = true;
+        emit TicketsAwarded(msg.sender);
+    }
+
+    /// @notice Called by the players who:
+    /// - Won the first halftime game and has a ticket granted by the resolver
+    /// - OR have lost the first halftime game and have won a free ticket to the second halftime game after calling getSecondHalftimeFreeTicket
+    /// @dev Revert if the campaign is not active
+    /// @dev Revert if the player has no ticket
+    function playSecondHalftimeWithTicket(uint256 _campaignId) external {
+        if (!campaigns[_campaignId].active) {
+            revert CampaignNotActive();
+        }
+        if (userHasHalftimeTicket[msg.sender] == false) {
             revert NoFreeTickets();
         }
-        userFreeTickets[msg.sender]--;
+        userHasHalftimeTicket[msg.sender] = false;
 
         // Generate unique random seed
         bytes32 userRandomNumber = keccak256(abi.encodePacked(msg.sender, _campaignId, block.timestamp, "ticket"));
@@ -204,11 +313,17 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         _requestRandomness(userRandomNumber);
     }
 
-    function playHeatmapWithChz(uint256 _campaignId) external payable {
+    /// @notice Called by the players who:
+    /// - Have lost the first halftime game
+    /// - Don't want to watch the video and do the quiz
+    /// - Want to play the second halftime game with a paid ticket
+    /// @dev This function grants the player a paid ticket
+    /// @dev Revert if the campaign is not active
+    function playSecondHalftimeWithChz(uint256 _campaignId) external payable {
         if (!campaigns[_campaignId].active) {
             revert CampaignNotActive();
         }
-        uint256 requiredChz = getSpinCostInChz();
+        uint256 requiredChz = getPlayFeeInUsdCents();
         if (msg.value < requiredChz) {
             revert InsufficientChzSent();
         }
@@ -224,7 +339,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     // Oracle & Internal Logic
     //================================================
 
-    function getSpinCostInChz() public view returns (uint256) {
+    function getPlayFeeInUsdCents() public view returns (uint256) {
         PythStructs.Price memory price = i_pyth.getPriceNoOlderThan(i_chzUsdPriceId, MAX_PRICE_AGE);
         // price.price is the price of 1 CHZ in USD (e.g., 5000000 with expo -8 for $0.05)
         // price.expo is the exponent (e.g., -8)
@@ -285,7 +400,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         delete s_randomnessRequests[sequenceNumber];
 
         // Get a value between 0 and 99
-        uint256 randomValue = uint256(randomNumber) % 100; 
+        uint256 randomValue = uint256(randomNumber) % 100;
 
         // Example Prize Logic: 5% top prize, 15% mid prize, 80% loyalty point
         // This should be configured per campaign for more flexibility
@@ -318,7 +433,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     }
 
     function _awardPrize(address _user, uint256 _prizeId) internal {
-        // In a real contract, you would check prize supply for the campaign
+        // In a real contract, check prize supply for the campaign
         // require(campaigns[activeCampaignId].prizeMinted[_prizeId] < campaigns[activeCampaignId].prizeSupply[_prizeId], "Prize sold out");
         // campaigns[activeCampaignId].prizeMinted[_prizeId]++;
 
@@ -334,7 +449,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     function getEntropy() internal view override returns (address) {
         return address(i_entropy);
     }
-    
+
     //================================================
     // View Functions
     //================================================
