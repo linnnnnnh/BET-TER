@@ -26,16 +26,6 @@ function App() {
         <MultiModeChatWidget />
         <Toaster />
       </ChatProvider>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/predictions" element={<PredictionPage />} />
-          <Route path="/halftime" element={<HeatmapPage />} />
-          <Route path="/rewards" element={<RewardsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-        </Routes>
-      </Layout>
-      <Toaster />
     </Router>
   )
 }
