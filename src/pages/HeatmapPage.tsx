@@ -213,15 +213,7 @@ export default function HeatmapPage() {
 
   const handleWatchVideo = () => {
     setIsPlayingVideo(true)
-    // Simulate video watching
-    setTimeout(() => {
-      setVideoWatched(true)
-      setIsPlayingVideo(false)
-      toast({
-        title: "Video completed!",
-        description: "Please answer the questions to unlock the game",
-      })
-    }, 3000) // 3 seconds for demo
+    // No automatic completion - user must watch the full video
   }
 
   const handleQuizAnswer = (questionIndex: number, answer: string) => {
@@ -242,14 +234,27 @@ export default function HeatmapPage() {
 
     setIsSubmittingEntry(true)
     try {
-      // TODO: Validate quiz answers
+      // Validate quiz answers
+      const correctAnswers = ['To support women\'s football and challenge prejudices', 'VFX to alter the appearance of female players']
+      const score = quizAnswers.reduce((acc, answer, index) => {
+        return acc + (answer === correctAnswers[index] ? 1 : 0)
+      }, 0)
+      
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      setGameEntry('video')
-      toast({
-        title: "Quiz completed!",
-        description: "You can now play the heatmap game",
-      })
+      if (score >= 1) { // At least 1 correct answer to pass
+        setGameEntry('video')
+        toast({
+          title: `Quiz completed! Score: ${score}/2`,
+          description: "You can now play the heatmap game",
+        })
+      } else {
+        toast({
+          title: "Quiz failed",
+          description: "Please try again. You need at least 1 correct answer.",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
       toast({
         title: "Quiz submission failed",
@@ -288,6 +293,113 @@ export default function HeatmapPage() {
   }
 
   const canPlayGame = hasWonPrediction || gameEntry === 'purchased' || gameEntry === 'video'
+
+
+  // Photo upload states
+  const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null)
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [aiVideoGenerating, setAiVideoGenerating] = useState(false)
+
+
+  const ShowQuizAfterVideo = () => {
+    setVideoWatched(true)
+    setIsPlayingVideo(false)
+  }
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (JPG, PNG, etc.)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsUploadingPhoto(true)
+    
+    try {
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file)
+      setUploadedPhoto(previewUrl)
+      setPhotoFile(file)
+      
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      toast({
+        title: "Photo uploaded successfully!",
+        description: "Your photo is ready for AI video generation",
+      })
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your photo. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploadingPhoto(false)
+    }
+  }
+
+  const handleGenerateAIVideo = async () => {
+    if (!photoFile) {
+      toast({
+        title: "No photo uploaded",
+        description: "Please upload your photo first",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setAiVideoGenerating(true)
+    
+    try {
+      // Simulate AI video generation process
+      toast({
+        title: "AI Video Generation Started",
+        description: "Creating your personalized video with the PSG player...",
+      })
+      
+      // Simulate processing time (5 seconds for demo)
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      
+      toast({
+        title: "🎬 AI Video Generated!",
+        description: "Your personalized video is ready! Check your rewards page.",
+      })
+      
+      // TODO: In production, this would upload to cloud storage and trigger AI video generation
+      // const formData = new FormData()
+      // formData.append('photo', photoFile)
+      // formData.append('playerId', selectedCard?.toString() || '')
+      // const response = await fetch('/api/generate-ai-video', { method: 'POST', body: formData })
+      
+    } catch (error) {
+      toast({
+        title: "Generation failed",
+        description: "There was an error generating your AI video. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setAiVideoGenerating(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -425,15 +537,45 @@ export default function HeatmapPage() {
                 </div>
               </div>
               
-              {/* Right Column - Video Button */}
+              {/* Right Column - Video Button/Player */}
               <div className="flex flex-col justify-center min-w-[140px]">
-                <Button
-                  onClick={handleWatchVideo}
-                  disabled={!account || isPlayingVideo}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isPlayingVideo ? "Playing..." : "Start Video"}
-                </Button>
+                {!isPlayingVideo ? (
+                  <Button
+                    onClick={handleWatchVideo}
+                    disabled={!account}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Start Video
+                  </Button>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-2">
+                      <iframe 
+                        width="100%" 
+                        height="200" 
+                        src="https://www.youtube.com/embed/X_wLVRYHIS4?si=Rckp5wRhmeoJ72VP" 
+                        title="YouTube video player" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerPolicy="strict-origin-when-cross-origin" 
+                        allowFullScreen
+                        className="rounded-lg"
+                      ></iframe>
+                    </div>
+                    <p className="text-xs text-gray-500">Watch the full video to continue</p>
+                    <p className="text-xs text-green-600 mt-1">💡 For demo: This video showcases fan engagement technology</p>
+                    
+                    {/* Demo fallback button */}
+                    <Button
+                      onClick={ShowQuizAfterVideo}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      Answer Quiz
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -451,26 +593,29 @@ export default function HeatmapPage() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow"
+          className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow border-l-4 border-l-green-500"
         >
-          <h3 className="text-xl font-semibold mb-4">Quick Quiz</h3>
+          <div className="flex items-center space-x-2 mb-4">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+            <h3 className="text-xl font-semibold">Video Completed - Quick Quiz</h3>
+          </div>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Answer these questions about the video to unlock the game
+            Answer these questions about the video to unlock the game. You need at least 1 correct answer.
           </p>
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-6 mb-6">
             {/* Question 1 */}
-            <div>
-              <p className="font-medium mb-2">1. What was the main topic of the video?</p>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <p className="font-medium mb-3">1. What was the main purpose of Orange's "La Compil des Bleues" campaign?</p>
               <div className="space-y-2">
-                {['Sustainability in Sports', 'Fan Engagement Technology', 'Player Training Methods'].map((option) => (
-                  <label key={option} className="flex items-center space-x-2 cursor-pointer">
+                {['To promote their telecom services', 'To support women\'s football and challenge prejudices', 'To advertise new football merchandise'].map((option) => (
+                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <input
                       type="radio"
                       name="question1"
                       value={option}
                       onChange={(e) => handleQuizAnswer(0, e.target.value)}
-                      className="text-psg-blue"
+                      className="text-green-600 focus:ring-green-500"
                     />
                     <span>{option}</span>
                   </label>
@@ -479,17 +624,17 @@ export default function HeatmapPage() {
             </div>
 
             {/* Question 2 */}
-            <div>
-              <p className="font-medium mb-2">2. Which technology was featured in the video?</p>
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+              <p className="font-medium mb-3">2. What creative technique did Orange use to create the compilation?</p>
               <div className="space-y-2">
-                {['Blockchain & Web3', 'Virtual Reality', 'Artificial Intelligence'].map((option) => (
-                  <label key={option} className="flex items-center space-x-2 cursor-pointer">
+                {['Live filming with both teams', 'VFX to alter the appearance of female players', 'Animation and computer graphics'].map((option) => (
+                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                     <input
                       type="radio"
                       name="question2"
                       value={option}
                       onChange={(e) => handleQuizAnswer(1, e.target.value)}
-                      className="text-psg-blue"
+                      className="text-green-600 focus:ring-green-500"
                     />
                     <span>{option}</span>
                   </label>
@@ -498,17 +643,38 @@ export default function HeatmapPage() {
             </div>
           </div>
 
+          {/* Progress Indicator */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <span>Progress</span>
+              <span>{quizAnswers.filter(a => a).length}/2 questions answered</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(quizAnswers.filter(a => a).length / 2) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
           <Button
             onClick={handleSubmitQuiz}
-            disabled={!account || isSubmittingEntry}
-            className="bg-psg-blue hover:bg-psg-blue/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!account || isSubmittingEntry || quizAnswers.filter(a => a).length < 2}
+            className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmittingEntry ? "Submitting..." : "Submit Quiz"}
+            {isSubmittingEntry ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Submitting...</span>
+              </div>
+            ) : (
+              "Submit Quiz"
+            )}
           </Button>
           
           {!account && (
-            <p className="text-sm text-red-500 mt-2">
-              Log in to submit quiz
+            <p className="text-sm text-red-500 mt-4 text-center">
+              🔗 Log in to submit quiz
             </p>
           )}
         </motion.div>
@@ -722,9 +888,7 @@ export default function HeatmapPage() {
             // Loser - AI Video Compensation
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
               <div className="text-center">
-                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Star className="h-8 w-8 text-white" />
-                </div>
+                
                 <h3 className="text-xl font-semibold text-orange-700 dark:text-orange-300 mb-2">
                   😅 Not This Time, But...
                 </h3>
@@ -745,37 +909,81 @@ export default function HeatmapPage() {
                       Upload your photo and we'll create an AI video of you playing alongside {psgPlayers.find(p => p.id === selectedCard)?.name}!
                     </p>
                     
-                    {/* Photo Upload */}
-                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-3">
+                      {/* Photo Upload */}
+                      <div className='flex items-center justify-center'>
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-3 w-fit">
                       <input 
                         type="file" 
                         accept="image/*" 
                         className="hidden" 
                         id="photo-upload"
+                        onChange={handlePhotoUpload}
+                        disabled={isUploadingPhoto}
                       />
-                      <label 
-                        htmlFor="photo-upload" 
-                        className="cursor-pointer inline-flex items-center space-x-2 text-purple-600 hover:text-purple-700"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">Upload Your Photo</span>
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1">
-                        We'll generate your AI video within a few minutes
+                      
+                      {!uploadedPhoto ? (
+                        <label 
+                          htmlFor="photo-upload" 
+                          className={`cursor-pointer inline-flex items-center space-x-2 text-purple-600 hover:text-purple-700 ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {isUploadingPhoto ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                              <span className="text-sm font-medium">Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-sm font-medium">Upload Your Photo</span>
+                            </>
+                          )}
+                        </label>
+                      ) : (
+                        <div className="text-center">
+                          <div className="mb-3">
+                            <img 
+                              src={uploadedPhoto} 
+                              alt="Uploaded photo" 
+                              className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-purple-300"
+                            />
+                          </div>
+                          <p className="text-sm text-green-600 font-medium mb-2">✅ Photo uploaded successfully!</p>
+                          <button
+                            onClick={() => document.getElementById('photo-upload')?.click()}
+                            className="text-xs text-purple-600 hover:text-purple-700 underline"
+                          >
+                            Change photo
+                          </button>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        {uploadedPhoto ? 'Ready for AI video generation' : 'JPG, PNG up to 5MB'}
                       </p>
                     </div>
+                      </div>
+                    
                   </div>
                 </div>
                 
                 <div className="flex space-x-2 justify-center">
                   <Button 
-                    onClick={() => document.getElementById('photo-upload')?.click()}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={handleGenerateAIVideo}
+                    disabled={!uploadedPhoto || aiVideoGenerating}
+                    className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Play className="w-4 h-4 mr-2" />
-                    Add your Photo
+                    {aiVideoGenerating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        {uploadedPhoto ? 'Generate AI Video' : 'Upload Photo First'}
+                      </>
+                    )}
                   </Button>
-                  
                 </div>
               </div>
             </div>
