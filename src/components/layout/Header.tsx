@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useActiveAccount, useReadContract } from 'thirdweb/react'
 import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
@@ -8,7 +8,33 @@ import { Menu, X, Ticket, Moon, Sun } from 'lucide-react'
 export default function Header() {
   const account = useActiveAccount()
   const [showMenu, setShowMenu] = useState(false)
-  const [isDark, setIsDark] = useState(true)
+  
+  // Initialize dark mode based on localStorage and DOM state
+  const [isDark, setIsDark] = useState(() => {
+    // Check localStorage first
+    const savedTheme = localStorage.getItem('theme')
+    if (savedTheme) {
+      return savedTheme === 'dark'
+    }
+    // Fallback to checking if dark class is present on document
+    return document.documentElement.classList.contains('dark')
+  })
+
+  // Sync with DOM on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme')
+    if (savedTheme) {
+      const shouldBeDark = savedTheme === 'dark'
+      setIsDark(shouldBeDark)
+      if (shouldBeDark) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    }
+  }, [])
+
+  console.log('is dark', isDark)
 
   // Read free tickets from smart contract
   const contract = getEngagementContract()
@@ -23,6 +49,7 @@ export default function Header() {
 
 
   const toggleDarkMode = () => {
+    console.log("Toggling dark mode")
     if (isDark) {
       document.documentElement.classList.remove('dark')
       localStorage.setItem('theme', 'light')

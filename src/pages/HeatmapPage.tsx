@@ -186,7 +186,6 @@ export default function HeatmapPage() {
     try {
       // Check token balance based on payment method
       const currentBalance = paymentMethod === 'CHZ' ? chzBalance?.value : psgBalance
-      const tokenName = paymentMethod === 'CHZ' ? 'CHZ' : 'PSG Fan Token'
       const requiredAmount = toWei("1") // 1 token required for entry
       
       // If user doesn't have enough tokens, trigger fiat onramp
@@ -194,10 +193,6 @@ export default function HeatmapPage() {
         !currentBalance ||
         (typeof currentBalance === "bigint" && currentBalance < requiredAmount)
       ) {
-        toast({
-          title: `Insufficient ${tokenName}`,
-          description: `You need at least 1 $${paymentMethod} token. Opening purchase simulator...`,
-        })
 
         // Show purchase modal instead of popup window
         setPurchaseTokenType(paymentMethod)
@@ -1189,12 +1184,13 @@ export default function HeatmapPage() {
           >
             <div className="text-center">
               <div className="text-4xl mb-4">🪙</div>
-              <h2 className="text-xl font-bold mb-4">Token Purchase Simulator</h2>
+              <h2 className="text-xl font-bold mb-4">1€ Ticket Purchase</h2>
               
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
                 <p><strong>Token:</strong> ${purchaseTokenType}</p>
-                <p><strong>Amount:</strong> 1.00 {purchaseTokenType}</p>
                 <p><strong>Price:</strong> ~€1.00</p>
+                <p><strong>Amount:</strong> 1.00 {purchaseTokenType}</p> //FIXME: get the real price from the contract
+
               </div>
               
               <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
