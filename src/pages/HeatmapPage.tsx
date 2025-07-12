@@ -53,14 +53,36 @@ export default function HeatmapPage() {
     params: [account?.address || ""],
   })
 
-  // PSG Players data
+  // PSG Players data (2024 squad, updated)
+  const playerPhotos = [
+    "https://media.psg.fr/image/upload/c_limit,w_257/f_avif/q_85/v1/donarumma1_nz1rvx?_a=BAVAZGE70",
+    "https://media.psg.fr/image/upload/c_limit,w_641/f_avif/q_85/v1/hakimi2_cq3wlm?_a=BAVAZGE70",
+    "https://media.psg.fr/image/upload/c_limit,w_641/f_avif/q_85/v1/kimpembe3_d4lsli?_a=BAVAZGE70",
+    "https://media.psg.fr/image/upload/c_limit,w_641/f_avif/q_85/v1/marquinhos5_p98fnm?_a=BAVAZGE70"
+  ];
   const psgPlayers = [
-    { id: 1, name: "Kylian Mbappé", position: "Forward", number: 7, photo: "🇫🇷" },
-    { id: 2, name: "Neymar Jr", position: "Forward", number: 10, photo: "🇧🇷" },
-    { id: 3, name: "Lionel Messi", position: "Forward", number: 30, photo: "🇦🇷" },
-    { id: 4, name: "Marco Verratti", position: "Midfielder", number: 6, photo: "🇮🇹" },
-    { id: 5, name: "Marquinhos", position: "Defender", number: 5, photo: "🇧🇷" },
-    { id: 6, name: "Achraf Hakimi", position: "Defender", number: 2, photo: "🇲🇦" },
+    { id: 1, name: "Gianluigi Donnarumma", position: "Gardien de but", number: 1, photo: playerPhotos[0] },
+    { id: 2, name: "Achraf Hakimi", position: "Défenseur", number: 2, photo: playerPhotos[1] },
+    { id: 3, name: "Presnel Kimpembe", position: "Défenseur", number: 3, photo: playerPhotos[2] },
+    { id: 5, name: "Marquinhos", position: "Défenseur", number: 5, photo: playerPhotos[3] },
+    { id: 7, name: "Khvicha Kvaratskhelia", position: "Attaquant", number: 7, photo: playerPhotos[2] },
+    { id: 8, name: "Fabián Ruiz", position: "Milieu de terrain", number: 8, photo: playerPhotos[1] },
+    { id: 9, name: "Gonçalo Ramos", position: "Attaquant", number: 9, photo: playerPhotos[2] },
+    { id: 10, name: "Ousmane Dembélé", position: "Attaquant", number: 10, photo: playerPhotos[3] },
+    { id: 14, name: "Désiré Doué", position: "Attaquant", number: 14, photo: playerPhotos[2] },
+    { id: 17, name: "Vitinha", position: "Milieu de terrain", number: 17, photo: playerPhotos[1] },
+    { id: 19, name: "Lee Kang-In", position: "Milieu de terrain", number: 19, photo: playerPhotos[2] },
+    { id: 21, name: "Lucas Hernández", position: "Défenseur", number: 21, photo: playerPhotos[3] },
+    { id: 24, name: "Senny Mayulu", position: "Milieu de terrain", number: 24, photo: playerPhotos[2] },
+    { id: 25, name: "Nuno Mendes", position: "Défenseur", number: 25, photo: playerPhotos[1] },
+    { id: 29, name: "Bradley Barcola", position: "Attaquant", number: 29, photo: playerPhotos[2] },
+    { id: 33, name: "Warren Zaïre-Emery", position: "Milieu de terrain", number: 33, photo: playerPhotos[3] },
+    { id: 35, name: "Beraldo", position: "Défenseur", number: 35, photo: playerPhotos[0] },
+    { id: 39, name: "Matvey Safonov", position: "Gardien de but", number: 39, photo: playerPhotos[1] },
+    { id: 49, name: "Ibrahim Mbaye", position: "Attaquant", number: 49, photo: playerPhotos[2] },
+    { id: 51, name: "Willian Pacho", position: "Défenseur", number: 51, photo: playerPhotos[3] },
+    { id: 80, name: "Arnau Tenas", position: "Gardien de but", number: 80, photo: playerPhotos[0] },
+    { id: 87, name: "João Neves", position: "Milieu de terrain", number: 87, photo: playerPhotos[1] },
   ]
 
   // Check if user won prediction (TODO: Replace with smart contract call)
@@ -456,7 +478,7 @@ export default function HeatmapPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl font-bold text-gradient-psg mb-4"
         >
-          halftime Game
+          Halftime Game
         </motion.h1>
         <p className="text-gray-600 dark:text-gray-300">
           Interactive halftime mini-game
@@ -823,9 +845,17 @@ export default function HeatmapPage() {
                     >
                       {/* Player Photo */}
                       <div className="text-center mb-3">
-                        <div className="w-16 h-16 bg-gradient-to-br from-psg-blue to-chiliz-red rounded-full flex items-center justify-center text-2xl mx-auto mb-2 shadow-lg">
+                        {typeof player.photo === "string" && player.photo.startsWith("http") ? (
+                          <img
+                          src={player.photo}
+                          alt={player.name}
+                          className="w-16 h-16 rounded-full object-cover mx-auto mb-2 shadow-lg border-2 border-psg-blue"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-br from-psg-blue to-chiliz-red rounded-full flex items-center justify-center text-2xl mx-auto mb-2 shadow-lg">
                           {player.photo}
-                        </div>
+                          </div>
+                        )}
                         <div className="w-8 h-8 bg-psg-blue text-white rounded-full flex items-center justify-center text-sm font-bold mx-auto">
                           {player.number}
                         </div>
