@@ -4,7 +4,7 @@ import { useActiveAccount, useReadContract, useWalletBalance } from 'thirdweb/re
 import { Button } from '@/components/ui/button'
 import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { client, chilizChain as chiliz } from '@/lib/thirdweb'
+import { client, chilizSpicyChain as chiliz } from '@/lib/thirdweb'
 import { getContract, toWei } from 'thirdweb'
 import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
 

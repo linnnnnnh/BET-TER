@@ -1,17 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useActiveAccount } from 'thirdweb/react'
+import { useActiveAccount, useSendTransaction, useReadContract } from 'thirdweb/react'
+import { readContract } from 'thirdweb'
 import { Button } from '@/components/ui/button'
 import { Calendar, Clock, Target, Trophy, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-// TODO: Implement smart contract integration once ThirdWeb type issues are resolved
-// import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
+import { getEngagementContract, contractUtils } from '@/lib/contract'
 
 export default function PredictionPage() {
   const account = useActiveAccount()
   const [psgScore, setPsgScore] = useState('')
   const [lyonScore, setLyonScore] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentCampaignId, setCurrentCampaignId] = useState<number>(1) // Default to campaign 1
+
+  // Get current campaign ID from smart contract
+  const { data: nextCampaignId } = useReadContract({
+    contract: getEngagementContract(),
+    method: 'function nextCampaignId() view returns (uint256)',
+    params: []
+  })
+
+  // Calculate current campaign ID (always nextCampaignId - 1)
+  const actualCurrentCampaignId = nextCampaignId ? Number(nextCampaignId) - 1 : 1
+
+  // Get current campaign info to check if it's active
+  const { data: campaignData } = useReadContract({
+    contract: getEngagementContract(),
+    method: 'function campaigns(uint256) view returns (uint256 id, string team1, string team2, uint256 startTimePredictionGame, uint256 endTimePredictionGame, uint256 startTimeSecondHalftimeGame, uint256 endTimeSecondHalftimeGame, bool active)',
+    params: [BigInt(actualCurrentCampaignId)]
+  })
+
+  // Smart contract transaction hook
+  const { mutate: sendTransaction } = useSendTransaction()
+
+  // Update campaign ID when contract data is available
+  useEffect(() => {
+    if (nextCampaignId) {
+      // Always use nextCampaignId - 1 as the current campaign
+      const campaignId = Number(nextCampaignId) - 1
+      setCurrentCampaignId(campaignId > 0 ? campaignId : 1)
+    }
+  }, [nextCampaignId])
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Campaign Debug Info:', {
+      currentCampaignId,
+      actualCurrentCampaignId,
+      nextCampaignId: nextCampaignId ? Number(nextCampaignId) : 'loading',
+      campaignData,
+      campaignActive: campaignData ? campaignData[7] : 'loading'
+    })
+  }, [currentCampaignId, actualCurrentCampaignId, nextCampaignId, campaignData])
 
   const handleScoreChange = (team: 'psg' | 'lyon', value: string) => {
     // Only allow numbers 0-9
@@ -46,23 +87,162 @@ export default function PredictionPage() {
     setIsSubmitting(true)
     
     try {
-      // TODO: Implement smart contract integration
-      // Currently there are TypeScript compatibility issues with ThirdWeb types
-      // that need to be resolved before implementing the submitPredictions call
+      // Fresh fetch of nextCampaignId to ensure we have the latest value
+      const contract = getEngagementContract()
+      const freshNextCampaignId = await readContract({
+        contract,
+        method: 'function nextCampaignId() view returns (uint256)',
+        params: []
+      })
+      const campaignIdToUse = Number(freshNextCampaignId) - 1
+
+      console.log('Fresh campaign ID fetch:', {
+        freshNextCampaignId: Number(freshNextCampaignId),
+        campaignIdToUse,
+        previousNextCampaignId: nextCampaignId ? Number(nextCampaignId) : 'loading'
+      })
+
+      // Validate campaign ID
+      if (campaignIdToUse < 1) {
+        toast({
+          title: "No active campaign",
+          description: "No campaigns have been created yet.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Check if the campaign exists and is active
+      try {
+        const contract = getEngagementContract()
+        const campaignInfo = await readContract({
+          contract,
+          method: 'function campaigns(uint256) view returns (uint256 id, string team1, string team2, uint256 startTimePredictionGame, uint256 endTimePredictionGame, uint256 startTimeSecondHalftimeGame, uint256 endTimeSecondHalftimeGame, bool active)',
+          params: [BigInt(campaignIdToUse)]
+        })
+        
+        console.log('Campaign info:', {
+          campaignId: campaignIdToUse,
+          campaignInfo,
+          isActive: campaignInfo[7]
+        })
+
+        // Check if campaign is active
+        if (!campaignInfo[7]) {
+          toast({
+            title: "Campaign not active",
+            description: "This campaign is not currently active for predictions.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Check if we're in the prediction time window
+        const now = Math.floor(Date.now() / 1000)
+        const startTime = Number(campaignInfo[3])
+        const endTime = Number(campaignInfo[4])
+        
+        if (now < startTime) {
+          toast({
+            title: "Predictions not yet open",
+            description: "The prediction period for this campaign hasn't started yet.",
+            variant: "destructive",
+          })
+          return
+        }
+
+        if (now > endTime) {
+          toast({
+            title: "Predictions closed",
+            description: "The prediction period for this campaign has ended.",
+            variant: "destructive",
+          })
+          return
+        }
+
+      } catch (campaignCheckError) {
+        console.error('Error checking campaign:', campaignCheckError)
+        toast({
+          title: "Campaign check failed",
+          description: "Could not verify campaign status. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const team1Score = parseInt(psgScore)
+      const team2Score = parseInt(lyonScore)
       
-      // Simulate API call for now
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Validate score inputs
+      if (isNaN(team1Score) || isNaN(team2Score) || team1Score < 0 || team2Score < 0 || team1Score > 9 || team2Score > 9) {
+        toast({
+          title: "Invalid scores",
+          description: "Please enter valid scores (0-9)",
+          variant: "destructive",
+        })
+        return
+      }
       
-      toast({
-        title: "Prediction submitted!",
-        description: `Your halftime prediction: PSG ${psgScore}-${lyonScore} Lyon`,
+      console.log('Submitting prediction:', {
+        campaignId: campaignIdToUse,
+        team1Score,
+        team2Score,
+        freshNextCampaignId: Number(freshNextCampaignId)
       })
       
-      // Reset form
-      setPsgScore('')
-      setLyonScore('')
+      // Prepare the smart contract call with fresh campaign ID
+      const transaction = contractUtils.submitPredictions(
+        campaignIdToUse,
+        team1Score,
+        team2Score
+      )
+      
+      // Submit the transaction
+      sendTransaction(transaction, {
+        onSuccess: (result) => {
+          toast({
+            title: "Prediction submitted!",
+            description: `Your halftime prediction: PSG ${psgScore}-${lyonScore} Lyon (Campaign ${campaignIdToUse})`,
+          })
+          
+          // Reset form
+          setPsgScore('')
+          setLyonScore('')
+          
+          console.log('Transaction successful:', result)
+        },
+        onError: (error) => {
+          console.error('Transaction failed:', error)
+          console.error('Error details:', {
+            message: error.message,
+            cause: error.cause,
+            stack: error.stack,
+            name: error.name
+          })
+          
+          // Try to provide more specific error messages
+          let errorMessage = "There was an error submitting your prediction. Please try again."
+          
+          if (error.message.includes('CampaignNotActive')) {
+            errorMessage = "The prediction period for this campaign has ended."
+          } else if (error.message.includes('CampaignDoesNotExist')) {
+            errorMessage = "This campaign does not exist."
+          } else if (error.message.includes('AlreadyHasTicket')) {
+            errorMessage = "You have already submitted a prediction for this campaign."
+          } else if (error.message.includes('0x55a5ff0a')) {
+            errorMessage = "Contract error: This might be due to campaign timing, duplicate submission, or campaign not being active."
+          }
+          
+          toast({
+            title: "Submission failed",
+            description: errorMessage,
+            variant: "destructive",
+          })
+        }
+      })
       
     } catch (error) {
+      console.error('Error preparing transaction:', error)
       toast({
         title: "Submission failed",
         description: "There was an error submitting your prediction. Please try again.",
