@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useActiveAccount, useSendTransaction, useReadContract } from 'thirdweb/react'
 import { readContract } from 'thirdweb'
@@ -14,6 +14,7 @@ export default function PredictionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [predictionSubmitted, setPredictionSubmitted] = useState(false)
   const [isCheckingResult, setIsCheckingResult] = useState(false)
+  const [predictionResultChecked, setPredictionResultChecked] = useState(false)
   const [currentCampaignId, setCurrentCampaignId] = useState<number>(1) // Default to campaign 1
 
   // Get current campaign ID from smart contract
@@ -95,6 +96,19 @@ export default function PredictionPage() {
     } else {
       // Reset state when wallet is disconnected
       setPredictionSubmitted(false)
+    }
+  }, [account?.address, actualCurrentCampaignId])
+
+  // Check if user has already checked prediction result for this campaign
+  useEffect(() => {
+    if (account?.address && actualCurrentCampaignId) {
+      // Storage key format: prediction_result_checked_{walletAddress}_{campaignId}
+      const storageKey = `prediction_result_checked_${account.address}_${actualCurrentCampaignId}`
+      const hasChecked = localStorage.getItem(storageKey) === 'true'
+      setPredictionResultChecked(hasChecked)
+    } else {
+      // Reset state when wallet is disconnected
+      setPredictionResultChecked(false)
     }
   }, [account?.address, actualCurrentCampaignId])
 
@@ -343,13 +357,60 @@ export default function PredictionPage() {
       
       // Submit the transaction
       sendTransaction(transaction, {
-        onSuccess: (result) => {
-          toast({
-            title: "Prediction result checked!",
-            description: "Your prediction result has been processed. Check your free tickets!",
-          })
-          
+        onSuccess: async (result) => {
           console.log('Check result transaction successful:', result)
+          
+          // Add a small delay to ensure blockchain state is updated
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          
+          // After successful transaction, check if user won by reading their halftime ticket status
+          try {
+            const contract = getEngagementContract()
+            const hasHalftimeTicket = await readContract({
+              contract,
+              method: 'function userHasHalftimeTicket(address) view returns (bool)',
+              params: [account.address]
+            })
+            
+            if (hasHalftimeTicket) {
+              toast({
+                title: "🎉 Congratulations!",
+                description: "You won the game! You have a free ticket for the second halftime game!",
+                duration: 5000,
+              })
+            } else {
+              toast({
+                title: "Better luck next time!",
+                description: "Unfortunately, you didn't win the game.",
+                variant: "destructive",
+                duration: 5000,
+              })
+            }
+            
+            // Mark prediction result as checked
+            setPredictionResultChecked(true)
+            
+            // Store in localStorage for persistence
+            if (account?.address) {
+              const storageKey = `prediction_result_checked_${account.address}_${campaignIdToUse}`
+              localStorage.setItem(storageKey, 'true')
+            }
+          } catch (readError) {
+            console.error('Error reading halftime ticket status:', readError)
+            toast({
+              title: "Prediction result checked!",
+              description: "Your prediction result has been processed. Check your free tickets!",
+            })
+            
+            // Mark prediction result as checked even if we couldn't read the result
+            setPredictionResultChecked(true)
+            
+            // Store in localStorage for persistence
+            if (account?.address) {
+              const storageKey = `prediction_result_checked_${account.address}_${campaignIdToUse}`
+              localStorage.setItem(storageKey, 'true')
+            }
+          }
         },
         onError: (error) => {
           console.error('Check result transaction failed:', error)
@@ -362,6 +423,8 @@ export default function PredictionPage() {
             errorMessage = "The game results haven't been resolved yet. Please wait for the match to end."
           } else if (error.message.includes('AlreadyChecked')) {
             errorMessage = "You have already checked your prediction result for this campaign."
+          } else if (error.message.includes('PredictionNotPlayed')) {
+            errorMessage = "You haven't made a prediction for this campaign yet."
           }
           
           toast({
@@ -527,13 +590,18 @@ export default function PredictionPage() {
           {predictionSubmitted && (
             <Button
               onClick={handleCheckPredictionResult}
-              disabled={!account || isCheckingResult}
+              disabled={!account || isCheckingResult || predictionResultChecked}
               className="bg-psg-blue hover:bg-psg-blue/90 text-white px-8 py-3 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCheckingResult ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Checking...
+                </>
+              ) : predictionResultChecked ? (
+                <>
+                  <Trophy className="w-5 h-5 mr-2" />
+                  Result Already Checked ✓
                 </>
               ) : (
                 <>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useActiveAccount, useReadContract } from 'thirdweb/react'
 import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
@@ -38,14 +38,14 @@ export default function Header() {
 
   // Read free tickets from smart contract
   const contract = getEngagementContract()
-  const { data: freeTickets = 0 } = useReadContract({
+  const { data: hasHalftimeTicket = false } = useReadContract({
     contract,
-    method: "userFreeTickets",
+    method: "function userHasHalftimeTicket(address) view returns (bool)",
     params: [account?.address || "0x0000000000000000000000000000000000000000"],
   })
 
-  // Convert BigInt to number for display
-  const ticketCount = Number(freeTickets || 0)
+  // Convert boolean to number for display (0 or 1)
+  const ticketCount = hasHalftimeTicket ? 1 : 0
 
 
   const toggleDarkMode = () => {
