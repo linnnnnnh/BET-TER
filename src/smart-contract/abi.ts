@@ -63,28 +63,51 @@ export const engagementPlatformAbi = [
     "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "outputs": [
       { "name": "id", "type": "uint256", "internalType": "uint256" },
-      { "name": "startTime", "type": "uint256", "internalType": "uint256" },
-      { "name": "endTime", "type": "uint256", "internalType": "uint256" },
+      { "name": "team1", "type": "string", "internalType": "string" },
+      { "name": "team2", "type": "string", "internalType": "string" },
+      { "name": "startTimePredictionGame", "type": "uint256", "internalType": "uint256" },
+      { "name": "endTimePredictionGame", "type": "uint256", "internalType": "uint256" },
+      { "name": "startTimeSecondHalftimeGame", "type": "uint256", "internalType": "uint256" },
+      { "name": "endTimeSecondHalftimeGame", "type": "uint256", "internalType": "uint256" },
       { "name": "active", "type": "bool", "internalType": "bool" }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
+    "name": "checkPredictionResult",
+    "inputs": [{ "name": "_campaignId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "createCampaign",
     "inputs": [
-      { "name": "_startTime", "type": "uint256", "internalType": "uint256" },
-      { "name": "_endTime", "type": "uint256", "internalType": "uint256" }
+      {
+        "name": "_campaign",
+        "type": "tuple",
+        "internalType": "struct Better.CampaignInput",
+        "components": [
+          { "name": "id", "type": "uint256", "internalType": "uint256" },
+          { "name": "team1", "type": "string", "internalType": "string" },
+          { "name": "team2", "type": "string", "internalType": "string" },
+          { "name": "startTimePredictionGame", "type": "uint256", "internalType": "uint256" },
+          { "name": "endTimePredictionGame", "type": "uint256", "internalType": "uint256" },
+          { "name": "startTimeSecondHalftimeGame", "type": "uint256", "internalType": "uint256" },
+          { "name": "endTimeSecondHalftimeGame", "type": "uint256", "internalType": "uint256" }
+        ]
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "createPredictionMarket",
+    "name": "createPredictionGame",
     "inputs": [
       { "name": "_campaignId", "type": "uint256", "internalType": "uint256" },
-      { "name": "_questions", "type": "string[]", "internalType": "string[]" }
+      { "name": "_question", "type": "string", "internalType": "string" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -98,10 +121,17 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "function",
-    "name": "getSpinCostInChz",
+    "name": "getPlayFeeInUsdCents",
     "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getSecondHalftimeFreeTicket",
+    "inputs": [{ "name": "_campaignId", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -171,24 +201,27 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "function",
-    "name": "playHeatmapWithChz",
+    "name": "playSecondHalftimeWithChz",
     "inputs": [{ "name": "_campaignId", "type": "uint256", "internalType": "uint256" }],
     "outputs": [],
     "stateMutability": "payable"
   },
   {
     "type": "function",
-    "name": "playHeatmapWithTicket",
+    "name": "playSecondHalftimeWithTicket",
     "inputs": [{ "name": "_campaignId", "type": "uint256", "internalType": "uint256" }],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "predictionMarkets",
+    "name": "predictionGames",
     "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "outputs": [
       { "name": "campaignId", "type": "uint256", "internalType": "uint256" },
+      { "name": "question", "type": "string", "internalType": "string" },
+      { "name": "team1Score", "type": "uint8", "internalType": "uint8" },
+      { "name": "team2Score", "type": "uint8", "internalType": "uint8" },
       { "name": "resolved", "type": "bool", "internalType": "bool" }
     ],
     "stateMutability": "view"
@@ -204,14 +237,20 @@ export const engagementPlatformAbi = [
     ],
     "stateMutability": "view"
   },
-  { "type": "function", "name": "renounceOwnership", "inputs": [], "outputs": [], "stateMutability": "nonpayable" },
   {
     "type": "function",
-    "name": "resolvePredictionsForUsers",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "resolvePredictionGame",
     "inputs": [
       { "name": "_campaignId", "type": "uint256", "internalType": "uint256" },
-      { "name": "_users", "type": "address[]", "internalType": "address[]" },
-      { "name": "_ticketCounts", "type": "uint256[]", "internalType": "uint256[]" }
+      { "name": "_team1Score", "type": "uint8", "internalType": "uint8" },
+      { "name": "_team2Score", "type": "uint8", "internalType": "uint8" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -264,7 +303,8 @@ export const engagementPlatformAbi = [
     "name": "submitPredictions",
     "inputs": [
       { "name": "_campaignId", "type": "uint256", "internalType": "uint256" },
-      { "name": "_predictions", "type": "uint8[]", "internalType": "uint8[]" }
+      { "name": "_team1Score", "type": "uint8", "internalType": "uint8" },
+      { "name": "_team2Score", "type": "uint8", "internalType": "uint8" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -324,9 +364,16 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "function",
-    "name": "userFreeTickets",
+    "name": "updateTrustedDataResolver",
+    "inputs": [{ "name": "_newResolver", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "userHasHalftimeTicket",
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
-    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
     "stateMutability": "view"
   },
   {
@@ -370,8 +417,12 @@ export const engagementPlatformAbi = [
     "name": "CampaignCreated",
     "inputs": [
       { "name": "campaignId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-      { "name": "startTime", "type": "uint256", "indexed": false, "internalType": "uint256" },
-      { "name": "endTime", "type": "uint256", "indexed": false, "internalType": "uint256" }
+      { "name": "team1", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "team2", "type": "string", "indexed": false, "internalType": "string" },
+      { "name": "startTimePredictionGame", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "endTimePredictionGame", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "startTimeSecondHalftimeGame", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "endTimeSecondHalftimeGame", "type": "uint256", "indexed": false, "internalType": "uint256" }
     ],
     "anonymous": false
   },
@@ -387,7 +438,9 @@ export const engagementPlatformAbi = [
   {
     "type": "event",
     "name": "MetadataUpdate",
-    "inputs": [{ "name": "_tokenId", "type": "uint256", "indexed": false, "internalType": "uint256" }],
+    "inputs": [
+      { "name": "_tokenId", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
     "anonymous": false
   },
   {
@@ -401,16 +454,19 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "event",
-    "name": "PredictionMarketCreated",
-    "inputs": [{ "name": "campaignId", "type": "uint256", "indexed": true, "internalType": "uint256" }],
+    "name": "PredictionGameCreated",
+    "inputs": [
+      { "name": "campaignId", "type": "uint256", "indexed": true, "internalType": "uint256" }
+    ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "PredictionMarketResolved",
+    "name": "PredictionGameResolved",
     "inputs": [
       { "name": "campaignId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-      { "name": "resolver", "type": "address", "indexed": true, "internalType": "address" }
+      { "name": "team1Score", "type": "uint8", "indexed": false, "internalType": "uint8" },
+      { "name": "team2Score", "type": "uint8", "indexed": false, "internalType": "uint8" }
     ],
     "anonymous": false
   },
@@ -420,7 +476,8 @@ export const engagementPlatformAbi = [
     "inputs": [
       { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
       { "name": "campaignId", "type": "uint256", "indexed": true, "internalType": "uint256" },
-      { "name": "predictions", "type": "uint8[]", "indexed": false, "internalType": "uint8[]" }
+      { "name": "team1", "type": "uint8", "indexed": false, "internalType": "uint8" },
+      { "name": "team2", "type": "uint8", "indexed": false, "internalType": "uint8" }
     ],
     "anonymous": false
   },
@@ -438,8 +495,7 @@ export const engagementPlatformAbi = [
     "type": "event",
     "name": "TicketsAwarded",
     "inputs": [
-      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
-      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" }
     ],
     "anonymous": false
   },
@@ -453,8 +509,21 @@ export const engagementPlatformAbi = [
     ],
     "anonymous": false
   },
-  { "type": "error", "name": "CampaignDoesNotExist", "inputs": [] },
-  { "type": "error", "name": "CampaignNotActive", "inputs": [] },
+  {
+    "type": "error",
+    "name": "AlreadyHasTicket",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CampaignDoesNotExist",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CampaignNotActive",
+    "inputs": []
+  },
   {
     "type": "error",
     "name": "ERC721IncorrectOwner",
@@ -472,18 +541,105 @@ export const engagementPlatformAbi = [
       { "name": "tokenId", "type": "uint256", "internalType": "uint256" }
     ]
   },
-  { "type": "error", "name": "ERC721InvalidApprover", "inputs": [{ "name": "approver", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "ERC721InvalidOperator", "inputs": [{ "name": "operator", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "ERC721InvalidOwner", "inputs": [{ "name": "owner", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "ERC721InvalidReceiver", "inputs": [{ "name": "receiver", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "ERC721InvalidSender", "inputs": [{ "name": "sender", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "ERC721NonexistentToken", "inputs": [{ "name": "tokenId", "type": "uint256", "internalType": "uint256" }] },
-  { "type": "error", "name": "InputArrayMismatch", "inputs": [] },
-  { "type": "error", "name": "InsufficientChzSent", "inputs": [] },
-  { "type": "error", "name": "MarketAlreadyResolved", "inputs": [] },
-  { "type": "error", "name": "NoFreeTickets", "inputs": [] },
-  { "type": "error", "name": "OwnableInvalidOwner", "inputs": [{ "name": "owner", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "OwnableUnauthorizedAccount", "inputs": [{ "name": "account", "type": "address", "internalType": "address" }] },
-  { "type": "error", "name": "RequestNotFound", "inputs": [] },
-  { "type": "error", "name": "Unauthorized", "inputs": [] }
+  {
+    "type": "error",
+    "name": "ERC721InvalidApprover",
+    "inputs": [
+      { "name": "approver", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC721InvalidOperator",
+    "inputs": [
+      { "name": "operator", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC721InvalidOwner",
+    "inputs": [
+      { "name": "owner", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC721InvalidReceiver",
+    "inputs": [
+      { "name": "receiver", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC721InvalidSender",
+    "inputs": [
+      { "name": "sender", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ERC721NonexistentToken",
+    "inputs": [
+      { "name": "tokenId", "type": "uint256", "internalType": "uint256" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "GameNotResolved",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InputArrayMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InsufficientChzSent",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MarketAlreadyResolved",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoFreeTickets",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OwnableInvalidOwner",
+    "inputs": [
+      { "name": "owner", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OwnableUnauthorizedAccount",
+    "inputs": [
+      { "name": "account", "type": "address", "internalType": "address" }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PredictionNotPlayed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "PredictionNotWon",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RequestNotFound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "Unauthorized",
+    "inputs": []
+  }
 ] as const;
