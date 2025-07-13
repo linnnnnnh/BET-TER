@@ -2,42 +2,43 @@
 
 A Web3 fan engagement platform for PSG supporters built on the Chiliz blockchain, featuring prediction markets, interactive games, and social impact treasury.
 
-## 🧩 Problem
+## Problem
 1. Women’s sports suffer from a lack of visibility — not due to absence, but due to lack of awareness and exposure.
 2. We know women’s matches exist, but why don’t we think of watching them?
 3. Media coverage is minimal, and public awareness is low.
 4. Traditional solutions like education take decades, and media/TV lacks incentives to promote them.
 
-## 🧠 Our Solution
+## Our Solution
 1. Leverage the visibility and the popularity of men sport games
 2. Implement a fun betting games during a match where all spectators can play
 3. Grant part of rewards that are dedicated to promote women sport games
 
-## 🚀 Project Overview
+## Project Overview
 
-This platform provides a two-phase fan engagement experience:
+This platform provides a two-phase fan engagement experience during a sport game such as a football match:
 
 1. **Prediction Phase** (before match): Fans answer prediction questions with AI chatbot assistance
-2. **Heatmap Game** (Halftime): Interactive mini-game with VRF-based outcomes and tiered rewards
-3. For winners, win some advantages with half of them are women game focus. For losers, mint a WOW Token which is an impact utility token for only access to advantages that are related to women sport games.
+2. **Lottery Game** (Halftime): Interactive mini-game with VRF-based outcomes and tiered rewards
+3. - For winners, win some advantages with half of them are women game focus.
+   - For losers, mint a WOW Token which is an impact utility token for only access to advantages that are related to women sport games. (implemented on smart contracts but not on the frontend)
 
-## 🚀 Roadmap
+## Roadmap
 
 - Integrate fetching game outcome data by oracle using Chainlink for game data and Hyperlane to bridge the result
-- Integrate mint of WOW token on the frontend dapp
+- Integrate mint of WOW token on the frontend dapp (implemented in the smart contract)
 - Make withdrawal of the CHZ in the contract only possible by swapping to WOW for women sport use
 
 
 ### Key Features
 
-- 🎯 **Prediction Market**: Pre-match predictions with AI assistance
-- 🎮 **Interactive Heatmap Game**: Halftime mini-game with VRF
-- 🏆 **Tiered Reward System**: On-site and online prizes with QR redemption
-- 💰 **Dynamic Pricing**: $CHZ/$PSG support with Pyth oracle integration
-- 🎬 **AI Consolation Videos**: Unique AI-generated videos for non-winners
-- 💝 **Social Impact Treasury**: 30% to women's inclusion, 70% to protocol
+- **Prediction Market**: Pre-match predictions with AI assistance
+- **Interactive Heatmap Game**: Halftime mini-game with VRF
+- **Tiered Reward System**: On-site and online prizes with QR redemption
+- **Dynamic Pricing**: $CHZ/$PSG support with Pyth oracle integration
+- **AI Consolation Videos**: Unique AI-generated videos for non-winners
+- **Social Impact Treasury**: 30% to women's inclusion, 70% to protocol
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Solidity**
@@ -83,7 +84,7 @@ BET-TER/
 └── index.html                  # Entry point
 ```
 
-## 🏗 Architecture Decisions
+## Architecture Decisions
 
 ### Mobile-First Design
 - Responsive design optimized for mobile usage during matches
