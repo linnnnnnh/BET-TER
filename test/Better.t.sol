@@ -141,5 +141,147 @@ contract BetterTest is Test {
         better.playSecondHalftimeWithChz{value: requiredChz}(1);
     }
 
+    function testPlaySecondHalftimeWithTicket() public {
+        // Test variables
+        uint256 campaignId = 1;
+        string memory team1 = "PSG";
+        string memory team2 = "Real Madrid";
+        uint256 startTimePredictionGame = block.timestamp + 1 hours;
+        uint256 endTimePredictionGame = block.timestamp + 2 hours;
+        uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
+        uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
+        
+        // Setup addresses
+        address spectator = address(0x123);
+        address resolver = TRUSTED_DATA_RESOLVER;
+        
+        // 1. Create campaign (Organiser)
+        vm.prank(INITIAL_OWNER);
+        better.createCampaign(
+            Better.CampaignInput(
+                campaignId,
+                team1,
+                team2,
+                startTimePredictionGame,
+                endTimePredictionGame,
+                startTimeSecondHalftimeGame,
+                endTimeSecondHalftimeGame
+            )
+        );
+        
+        // 2. Add some prizes for the winners (Organiser)
+        vm.startPrank(INITIAL_OWNER);
+        better.addPrize("Top Prize", "ipfs://top-prize-uri", 10, campaignId);
+        better.addPrize("Mid Prize", "ipfs://mid-prize-uri", 50, campaignId);
+        vm.stopPrank();
+        
+        // 3. Create the prediction game (Organiser)
+        vm.prank(INITIAL_OWNER);
+        better.createPredictionGame(campaignId, "What will be the final score?");
+        
+        // 4. Start the prediction game (Organiser)
+        vm.prank(INITIAL_OWNER);
+        better.setCampaignActive(campaignId, true);
+        
+        // 5. Predict the scores (Spectator)
+        uint8 predictedTeam1Score = 2;
+        uint8 predictedTeam2Score = 1;
+        
+        vm.prank(spectator);
+        better.submitPredictions(campaignId, predictedTeam1Score, predictedTeam2Score);
+        
+        // 6. Provide the first halftime result (Resolver)
+        // Make the spectator win by providing the same scores they predicted
+        vm.prank(resolver);
+        better.resolvePredictionGame(campaignId, predictedTeam1Score, predictedTeam2Score);
+        
+        // 7. Check if won the prediction game (Player)
+        vm.prank(spectator);
+        bool wonTicket = better.checkPredictionResult(campaignId);
+        
+        // Verify the spectator won the prediction game
+        assertTrue(wonTicket, "Spectator should have won the prediction game");
+        assertTrue(better.userHasHalftimeTicket(spectator), "Spectator should have a halftime ticket");
+        
+        // 8a. Play the game using the granted ticket (Winner)
+        // Fund the contract with enough ETH for entropy fee (needs about 1.5 ETH)
+        vm.deal(address(better), 2 ether);
+        
+        vm.prank(spectator);
+        better.playSecondHalftimeWithTicket(campaignId);
+        
+        // Verify the ticket was consumed
+        assertFalse(better.userHasHalftimeTicket(spectator), "Ticket should be consumed after playing");
+        
+        console2.log("Test completed successfully: Winner played second halftime with ticket");
+    }
+
+    function testPlaySecondHalftimeWithTicket_RevertIfNoTicket() public {
+        // Test variables
+        uint256 campaignId = 1;
+        string memory team1 = "PSG";
+        string memory team2 = "Real Madrid";
+        uint256 startTimePredictionGame = block.timestamp + 1 hours;
+        uint256 endTimePredictionGame = block.timestamp + 2 hours;
+        uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
+        uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
+        
+        address spectator = address(0x123);
+        
+        // Setup campaign
+        vm.prank(INITIAL_OWNER);
+        better.createCampaign(
+            Better.CampaignInput(
+                campaignId,
+                team1,
+                team2,
+                startTimePredictionGame,
+                endTimePredictionGame,
+                startTimeSecondHalftimeGame,
+                endTimeSecondHalftimeGame
+            )
+        );
+        
+        vm.prank(INITIAL_OWNER);
+        better.setCampaignActive(campaignId, true);
+        
+        // Try to play without a ticket - should revert
+        vm.prank(spectator);
+        vm.expectRevert(Better.NoFreeTickets.selector);
+        better.playSecondHalftimeWithTicket(campaignId);
+    }
+
+    function testPlaySecondHalftimeWithTicket_RevertIfCampaignNotActive() public {
+        // Test variables
+        uint256 campaignId = 1;
+        string memory team1 = "PSG";
+        string memory team2 = "Real Madrid";
+        uint256 startTimePredictionGame = block.timestamp + 1 hours;
+        uint256 endTimePredictionGame = block.timestamp + 2 hours;
+        uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
+        uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
+        
+        address spectator = address(0x123);
+        
+        // Setup campaign but don't activate it
+        vm.prank(INITIAL_OWNER);
+        better.createCampaign(
+            Better.CampaignInput(
+                campaignId,
+                team1,
+                team2,
+                startTimePredictionGame,
+                endTimePredictionGame,
+                startTimeSecondHalftimeGame,
+                endTimeSecondHalftimeGame
+            )
+        );
+        
+        // Try to play on inactive campaign - should revert
+        vm.prank(spectator);
+        vm.expectRevert(Better.CampaignNotActive.selector);
+        better.playSecondHalftimeWithTicket(campaignId);
+    }
+
     receive() external payable {}
 }
