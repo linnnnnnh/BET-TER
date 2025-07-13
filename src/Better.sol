@@ -7,6 +7,7 @@ import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
 import {IEntropyConsumer} from "@pythnetwork/entropy-sdk-solidity/IEntropyConsumer.sol";
 import {IEntropy} from "@pythnetwork/entropy-sdk-solidity/IEntropy.sol";
 import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "./WOWToken.sol";
 
 contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     //================================================
@@ -14,7 +15,6 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     //================================================
 
     error Unauthorized();
-    error InputArrayMismatch();
     error CampaignDoesNotExist();
     error MarketAlreadyResolved();
     error CampaignNotActive();
@@ -86,6 +86,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     IPyth private immutable i_pyth; // 0x23f0e8FAeE7bbb405E7A7C3d60138FCfd43d7509
     IEntropy private immutable i_entropy; // 0xD458261E832415CFd3BAE5E416FdF3230ce6F134
     bytes32 private immutable i_chzUsdPriceId; // 0xe799f456b358a2534aa1b45141d454ac04b444ed23b1440b778549bb758f2b5c
+    WOWToken public immutable wowToken; // WOW Fan Token contract
 
     uint32 private constant CALLBACK_GAS_LIMIT = 200000;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
@@ -101,6 +102,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     uint256 public nextTokenId;
     uint256 public constant LOYALTY_PRIZE_ID = 0;
     uint256 public playFeeInUsdCents = 100; // USD cents (e.g., 100 = $1.00)
+    uint256 public wowTokenPerBetLoss = 10 * 10 ** 18; // 10 WOW tokens per bet loss
 
     // --- Mappings ---
     mapping(uint256 => Campaign) public campaigns;
@@ -129,6 +131,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     event TicketsAwarded(address indexed user);
     event HeatmapPlayed(address indexed user, uint64 indexed requestId);
     event PrizeAwarded(address indexed user, uint256 prizeId, uint256 tokenId);
+    event WOWTokensAwarded(address indexed user, uint256 amount);
 
     //================================================
     // Constructor
@@ -139,12 +142,14 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         bytes32 _chzUsdPriceId,
         address _trustedDataResolver,
         address _initialOwner,
-        address _entropyAddress
+        address _entropyAddress,
+        address _wowTokenAddress
     ) ERC721("PSG Reward", "PSGR") Ownable(_initialOwner) {
         i_pyth = IPyth(_pythAddress);
         i_chzUsdPriceId = _chzUsdPriceId;
         trustedDataResolver = _trustedDataResolver;
         i_entropy = IEntropy(_entropyAddress);
+        wowToken = WOWToken(_wowTokenAddress);
 
         // Define the guaranteed loyalty prize
         prizes[LOYALTY_PRIZE_ID] =
@@ -224,6 +229,12 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
         emit PredictionGameResolved(_campaignId, _team1Score, _team2Score);
     }
 
+    /// @notice For the future development of the project, we will implement this function to swap the CHZ in the contract to WOW tokens
+    /// @dev The only way to withdraw the CHZ from the contract is to swap it to WOW tokens
+    function swapContractBalanceToWOWTokens() external onlyOwner {
+        // TODO: Implement this function
+    }
+
     function updatePlayFee(uint256 _playFeeInUsdCents) external onlyOwner {
         playFeeInUsdCents = _playFeeInUsdCents;
     }
@@ -231,6 +242,10 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     function updateTrustedDataResolver(address _newResolver) external onlyOwner {
         require(_newResolver != address(0), "Invalid resolver address");
         trustedDataResolver = _newResolver;
+    }
+
+    function updateWOWTokenPerBetLoss(uint256 _wowTokenPerBetLoss) external onlyOwner {
+        wowTokenPerBetLoss = _wowTokenPerBetLoss;
     }
 
     //================================================
@@ -316,6 +331,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     /// @notice Called by the players who:
     /// - Won the first halftime game and has a ticket granted by the resolver
     /// - OR have lost the first halftime game and have won a free ticket to the second halftime game after calling getSecondHalftimeFreeTicket
+    /// @dev Loser will receive 10 WOW tokens as consolation prize
     /// @dev Revert if the campaign is not active
     /// @dev Revert if the player has no ticket
     function playSecondHalftimeWithTicket(uint256 _campaignId) external {
@@ -345,6 +361,7 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     /// - Have lost the first halftime game
     /// - Don't want to watch the video and do the quiz
     /// - Want to play the second halftime game with a paid ticket
+    /// @dev Loser will receive 10 WOW tokens as consolation prize
     /// @dev This function grants the player a paid ticket
     /// @dev Revert if the campaign is not active
     function playSecondHalftimeWithChz(uint256 _campaignId) external payable {
@@ -454,6 +471,9 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
 
         if (hasWon) {
             _awardPrize(user, prizeIdToAward);
+        } else {
+            // Award 10 WOW tokens to users who didn't win a prize allow them to stay engaged
+            wowToken.awardBetLossTokens(user, wowTokenPerBetLoss);
         }
 
         _incrementLoyalty(user);
@@ -491,6 +511,14 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
 
     function getTokenURI(uint256 _tokenId) public view returns (string memory) {
         return tokenURI(_tokenId);
+    }
+
+    function getUserWOWTokens(address _user) public view returns (uint256) {
+        return wowToken.tokensOf(_user);
+    }
+
+    function getWOWTokenAddress() public view returns (address) {
+        return address(wowToken);
     }
 
     /// @notice Allows contract to receive CHZ directly

@@ -14,6 +14,7 @@ contract BetterTest is Test {
     address constant TRUSTED_DATA_RESOLVER = 0xfeb80317a68352c086B5f0CbE23898c000034CA4;
     address constant INITIAL_OWNER = 0xf58A0147d122Df314F0C557B58624C785C4a4CC5;
     address constant ENTROPY_ADDRESS = 0xD458261E832415CFd3BAE5E416FdF3230ce6F134;
+    address constant WOW_TOKEN_ADDRESS = 0x0000000000000000000000000000000000000000;
 
     string public SPICY_RPC_URL = vm.envString("SPICY_RPC_URL");
 
@@ -22,7 +23,9 @@ contract BetterTest is Test {
         uint256 forkId = vm.createFork(SPICY_RPC_URL);
         vm.selectFork(forkId);
 
-        better = new Better(PYTH_ADDRESS, CHZ_USD_PRICE_ID, TRUSTED_DATA_RESOLVER, INITIAL_OWNER, ENTROPY_ADDRESS);
+        better = new Better(
+            PYTH_ADDRESS, CHZ_USD_PRICE_ID, TRUSTED_DATA_RESOLVER, INITIAL_OWNER, ENTROPY_ADDRESS, WOW_TOKEN_ADDRESS
+        );
     }
 
     function testDeployment() public view {
@@ -135,7 +138,7 @@ contract BetterTest is Test {
 
         // Get required CHZ amount
         uint256 requiredChz = better.getPlayFeeInUsdCents();
-        
+
         // Fund the contract with enough CHZ to pay entropy fees (about 1.5 ETH)
         vm.deal(address(better), 2 ether);
 
@@ -153,11 +156,11 @@ contract BetterTest is Test {
         uint256 endTimePredictionGame = block.timestamp + 2 hours;
         uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
         uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
-        
+
         // Setup addresses
         address spectator = address(0x123);
         address resolver = TRUSTED_DATA_RESOLVER;
-        
+
         // 1. Create campaign (Organiser)
         vm.prank(INITIAL_OWNER);
         better.createCampaign(
@@ -171,51 +174,51 @@ contract BetterTest is Test {
                 endTimeSecondHalftimeGame
             )
         );
-        
+
         // 2. Add some prizes for the winners (Organiser)
         vm.startPrank(INITIAL_OWNER);
         better.addPrize("Top Prize", "ipfs://top-prize-uri", 10, campaignId);
         better.addPrize("Mid Prize", "ipfs://mid-prize-uri", 50, campaignId);
         vm.stopPrank();
-        
+
         // 3. Create the prediction game (Organiser)
         vm.prank(INITIAL_OWNER);
         better.createPredictionGame(campaignId, "What will be the final score?");
-        
+
         // 4. Start the prediction game (Organiser)
         vm.prank(INITIAL_OWNER);
         better.setCampaignActive(campaignId, true);
-        
+
         // 5. Predict the scores (Spectator)
         uint8 predictedTeam1Score = 2;
         uint8 predictedTeam2Score = 1;
-        
+
         vm.prank(spectator);
         better.submitPredictions(campaignId, predictedTeam1Score, predictedTeam2Score);
-        
+
         // 6. Provide the first halftime result (Resolver)
         // Make the spectator win by providing the same scores they predicted
         vm.prank(resolver);
         better.resolvePredictionGame(campaignId, predictedTeam1Score, predictedTeam2Score);
-        
+
         // 7. Check if won the prediction game (Player)
         vm.prank(spectator);
         bool wonTicket = better.checkPredictionResult(campaignId);
-        
+
         // Verify the spectator won the prediction game
         assertTrue(wonTicket, "Spectator should have won the prediction game");
         assertTrue(better.userHasHalftimeTicket(spectator), "Spectator should have a halftime ticket");
-        
+
         // 8a. Play the game using the granted ticket (Winner)
         // Fund the contract with enough ETH for entropy fee (needs about 1.5 ETH)
         vm.deal(address(better), 2 ether);
-        
+
         vm.prank(spectator);
         better.playSecondHalftimeWithTicket(campaignId);
-        
+
         // Verify the ticket was consumed
         assertFalse(better.userHasHalftimeTicket(spectator), "Ticket should be consumed after playing");
-        
+
         console2.log("Test completed successfully: Winner played second halftime with ticket");
     }
 
@@ -228,9 +231,9 @@ contract BetterTest is Test {
         uint256 endTimePredictionGame = block.timestamp + 2 hours;
         uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
         uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
-        
+
         address spectator = address(0x123);
-        
+
         // Setup campaign
         vm.prank(INITIAL_OWNER);
         better.createCampaign(
@@ -244,10 +247,10 @@ contract BetterTest is Test {
                 endTimeSecondHalftimeGame
             )
         );
-        
+
         vm.prank(INITIAL_OWNER);
         better.setCampaignActive(campaignId, true);
-        
+
         // Try to play without a ticket - should revert
         vm.prank(spectator);
         vm.expectRevert(Better.NoFreeTickets.selector);
@@ -263,9 +266,9 @@ contract BetterTest is Test {
         uint256 endTimePredictionGame = block.timestamp + 2 hours;
         uint256 startTimeSecondHalftimeGame = block.timestamp + 3 hours;
         uint256 endTimeSecondHalftimeGame = block.timestamp + 4 hours;
-        
+
         address spectator = address(0x123);
-        
+
         // Setup campaign but don't activate it
         vm.prank(INITIAL_OWNER);
         better.createCampaign(
@@ -279,7 +282,7 @@ contract BetterTest is Test {
                 endTimeSecondHalftimeGame
             )
         );
-        
+
         // Try to play on inactive campaign - should revert
         vm.prank(spectator);
         vm.expectRevert(Better.CampaignNotActive.selector);
