@@ -121,6 +121,16 @@ src/
    ```
    http://localhost:5173
    ```
+6. ## Adress
+
+   WOWToken
+   ```bash
+   0x3b697F4BBE13fbCBE075C611252aBd6D4237AFe9
+   ```
+   Better
+   ```bash
+   0xDA2E0cCA054C5d06B78268b0Bd3F7Eeb469474E4
+```
 
 ## 🔧 Development Commands
 
