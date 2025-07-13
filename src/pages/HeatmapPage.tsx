@@ -53,11 +53,11 @@ export default function HeatmapPage() {
     params: [account?.address || ""],
   })
 
-  // Read user's free tickets from smart contract
-  const { data: userFreeTickets = 0 } = useReadContract({
+  // Read user's halftime ticket from smart contract
+  const { data: hasHalftimeTicket = false } = useReadContract({
     contract: getEngagementContract(),
-    method: "userFreeTickets",
-    params: [account?.address || ""]
+    method: "function userHasHalftimeTicket(address) view returns (bool)",
+    params: [account?.address || "0x0000000000000000000000000000000000000000"]
   })
 
   // PSG Players data (2024 squad, updated)
@@ -253,7 +253,7 @@ export default function HeatmapPage() {
       return
     }
 
-    if (freeTicketsCount === 0) {
+    if (!hasHalftimeTicket) {
       toast({
         title: "No free tickets",
         description: "You don't have any free tickets to use",
@@ -389,9 +389,14 @@ export default function HeatmapPage() {
     })
   }
 
-  // Convert BigInt to number for UI logic
-  const freeTicketsCount = Number(userFreeTickets)
-  const hasFreePlays = freeTicketsCount > 0
+  // Convert boolean to number for UI logic
+  const freeTicketsCount = hasHalftimeTicket ? 1 : 0
+  const hasFreePlays = hasHalftimeTicket
+  
+  // Debug logging
+  console.log('Debug HeatmapPage - hasHalftimeTicket:', hasHalftimeTicket)
+  console.log('Debug HeatmapPage - freeTicketsCount:', freeTicketsCount)
+  console.log('Debug HeatmapPage - hasFreePlays:', hasFreePlays)
   
   const canPlayGame = hasFreePlays || gameEntry === 'purchased' || gameEntry === 'video' || gameEntry === 'ticket'
 
@@ -524,11 +529,8 @@ export default function HeatmapPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl font-bold text-gradient-psg mb-4"
         >
-          Halftime Game
+          Halftime Lottery
         </motion.h1>
-        <p className="text-gray-600 dark:text-gray-300">
-          Interactive halftime mini-game
-        </p>
       </div>
 
       {/* Game Status */}
@@ -541,8 +543,6 @@ export default function HeatmapPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Game Entry Status</h2>
           <div className="flex items-center space-x-1 text-psg-blue">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm font-medium">Available during halftime</span>
           </div>
         </div>
         
@@ -583,6 +583,60 @@ export default function HeatmapPage() {
           </div>
         )}
       </motion.div>
+
+      {/* Prediction Game Winner - Only show if user has free tickets */}
+      {hasHalftimeTicket && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow border-l-4 border-l-purple-500"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Prediction Game Winner</h2>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-gray-600 dark:text-gray-300 mb-2">
+                If you won, you can pay the lottery with your earned ticket!
+              </p>
+              <div className="flex items-center space-x-2 text-green-600">
+                <Gift className="h-5 w-5" />
+                <span className="font-medium">
+                  1 free ticket available
+                </span>
+              </div>
+            </div>
+            
+            <div className="ml-4">
+              <Button
+                onClick={handleUseFreeTicket}
+                disabled={!account || isSubmittingEntry || !hasHalftimeTicket}
+                className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingEntry ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Using...
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Play with earned ticket
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {!account && (
+            <p className="text-sm text-red-500 mt-4 text-center">
+              Connect your wallet to use earned tickets
+            </p>
+          )}
+        </motion.div>
+      )}
 
       {/* Free Ticket Option (if user has free tickets) */}
       {hasFreePlays && !canPlayGame && gameEntry === 'none' && (

@@ -81,7 +81,7 @@ export default function Header() {
               <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg">
                 <Ticket className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  {ticketCount} Free Ticket{ticketCount !== 1 ? 's' : ''}
+                  {ticketCount} Free Ticket
                 </span>
               </div>
             )}
