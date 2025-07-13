@@ -2,6 +2,17 @@
 
 A Web3 fan engagement platform for PSG supporters built on the Chiliz blockchain, featuring prediction markets, interactive games, and social impact treasury.
 
+## 🧩 Problem
+1. Women’s sports suffer from a lack of visibility — not due to absence, but due to lack of awareness and exposure.
+2. We know women’s matches exist, but why don’t we think of watching them?
+3. Media coverage is minimal, and public awareness is low.
+4. Traditional solutions like education take decades, and media/TV lacks incentives to promote them.
+
+## 🧠 Our Solution
+1. Credits to stream women’s matches
+2. Rewarded curiosity: get educated through play
+3. AI-generated insights about women’s teams
+
 ## 🚀 Project Overview
 
 This platform provides a two-phase fan engagement experience:
