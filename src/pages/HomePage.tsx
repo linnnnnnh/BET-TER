@@ -3,13 +3,12 @@ import { motion } from 'framer-motion'
 import { useReadContract } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Timer, Trophy, Target, Gamepad2, Gift, Clock, Calendar, Star, Medal, Crown, Award, ChevronDown, ChevronUp } from 'lucide-react'
+import { Timer, Trophy, Target, Gamepad2, Gift, Clock, Calendar, Star, Medal, Crown, Award } from 'lucide-react'
 import { getEngagementContract } from '@/lib/contract'
 
 export default function HomePage() {
   const [rulesOpen, setRulesOpen] = useState(false)
   const [leaderboardOpen, setLeaderboardOpen] = useState(false)
-  const [workflowOpen, setWorkflowOpen] = useState(false)
 
   // Get current campaign ID from smart contract
   const { data: nextCampaignId } = useReadContract({
@@ -136,85 +135,43 @@ export default function HomePage() {
         </motion.div>
       </div>
 
-      {/* Workflow Steps - Collapsible */}
+      {/* Workflow Steps */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="bg-white dark:bg-gray-800 rounded-xl card-glow overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-xl card-glow p-6"
       >
-        {/* Dropdown Header */}
-        <button
-          onClick={() => setWorkflowOpen(!workflowOpen)}
-          className="w-full p-6 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-        >
-          <h2 className="text-lg font-semibold">How It Works ?</h2>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {workflowOpen ? 'Hide' : 'Show'} workflow steps
-            </span>
-            {workflowOpen ? (
-              <ChevronUp className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            )}
+        <h2 className="text-lg font-semibold mb-6">How It Works ?</h2>
+        
+        <div className="grid grid-cols-3 gap-4">
+          {/* Step 1: Predict */}
+          <div className="text-center">
+            <div className="bg-blue-500 text-white text-xl font-bold rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">1</div>
+            <h3 className="font-semibold text-sm mb-1">Predict</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Predict to win a ticket for the halftime game
+            </p>
           </div>
-        </button>
 
-        {/* Collapsible Content */}
-        <motion.div
-          initial={false}
-          animate={{ 
-            height: workflowOpen ? 'auto' : 0,
-            opacity: workflowOpen ? 1 : 0
-          }}
-          transition={{ 
-            duration: 0.3, 
-            ease: 'easeInOut',
-            opacity: { duration: workflowOpen ? 0.3 : 0.1 }
-          }}
-          className="overflow-hidden"
-        >
-          <div className="px-6 pb-6">
-            <div className="grid grid-cols-3 gap-4">
-              {/* Step 1: Predict */}
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Target className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="bg-blue-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center mx-auto mb-2">1</div>
-                <h3 className="font-semibold text-sm mb-1">Predict</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Make match predictions & earn tickets
-                </p>
-              </div>
-
-              {/* Step 2: Play */}
-              <div className="text-center">
-                <div className="w-12 h-12 bg-chiliz-red/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Gamepad2 className="h-6 w-6 text-chiliz-red" />
-                </div>
-                <div className="bg-chiliz-red text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center mx-auto mb-2">2</div>
-                <h3 className="font-semibold text-sm mb-1">Play</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Use tickets in halftime game
-                </p>
-              </div>
-
-              {/* Step 3: Win */}
-              <div className="text-center">
-                <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Gift className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="bg-yellow-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center mx-auto mb-2">3</div>
-                <h3 className="font-semibold text-sm mb-1">Rewards</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Win prizes & exclusive rewards
-                </p>
-              </div>
-            </div>
+          {/* Step 2: Play */}
+          <div className="text-center">
+            <div className="bg-chiliz-red text-white text-xl font-bold rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">2</div>
+            <h3 className="font-semibold text-sm mb-1">Play</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Use the ticket to play
+            </p>
           </div>
-        </motion.div>
+
+          {/* Step 3: Win */}
+          <div className="text-center">
+            <div className="bg-yellow-500 text-white text-xl font-bold rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">3</div>
+            <h3 className="font-semibold text-sm mb-1">Rewards</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Win prizes & exclusive rewards
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Next Match Section */}
@@ -227,7 +184,7 @@ export default function HomePage() {
         {/* Match Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Next Match</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Current Match</h2>
             <p className="text-gray-600 dark:text-gray-300 text-sm">Ligue 1 Championship</p>
           </div>
           <div className="text-right">

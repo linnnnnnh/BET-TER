@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useActiveAccount, useReadContract, useWalletBalance, useSendTransaction } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
-import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2 } from 'lucide-react'
+import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2, Share2, Copy } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { client, chilizSpicyChain as chiliz } from '@/lib/thirdweb'
 import { getContract, toWei, prepareContractCall } from 'thirdweb'
@@ -14,7 +14,6 @@ export default function HeatmapPage() {
   const [gameEntry, setGameEntry] = useState<'none' | 'purchased' | 'video' | 'ticket'>('none')
   const [isPlayingVideo, setIsPlayingVideo] = useState(false)
   const [videoWatched, setVideoWatched] = useState(false)
-  const [quizAnswers, setQuizAnswers] = useState<string[]>([])
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false)
   const [hasPlayedGame, setHasPlayedGame] = useState(false)
   
@@ -372,54 +371,28 @@ export default function HeatmapPage() {
     // No automatic completion - user must watch the full video
   }
 
-  const handleQuizAnswer = (questionIndex: number, answer: string) => {
-    const newAnswers = [...quizAnswers]
-    newAnswers[questionIndex] = answer
-    setQuizAnswers(newAnswers)
-  }
 
-  const handleSubmitQuiz = async () => {
-    if (quizAnswers.length < 2 || quizAnswers.some(answer => !answer)) {
-      toast({
-        title: "Incomplete quiz",
-        description: "Please answer all questions",
-        variant: "destructive",
-      })
-      return
-    }
 
+  const handleUnlockGame = async () => {
     setIsSubmittingEntry(true)
     try {
-      // Validate quiz answers
-      const correctAnswers = ['To support women\'s football and challenge prejudices', 'VFX to alter the appearance of female players']
-      const score = quizAnswers.reduce((acc, answer, index) => {
-        return acc + (answer === correctAnswers[index] ? 1 : 0)
-      }, 0)
-      
+      // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      if (score >= 1) { // At least 1 correct answer to pass
-        setGameEntry('video')
-        // Save to localStorage for header ticket count
-        if (account?.address) {
-          localStorage.setItem(`gameEntry_${account.address}`, 'video')
-          // Dispatch custom event to update header
-          window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
-        }
-        toast({
-          title: `Quiz completed! Score: ${score}/2`,
-          description: "You can now play the heatmap game",
-        })
-      } else {
-        toast({
-          title: "Quiz failed",
-          description: "Please try again. You need at least 1 correct answer.",
-          variant: "destructive",
-        })
+      setGameEntry('video')
+      // Save to localStorage for header ticket count
+      if (account?.address) {
+        localStorage.setItem(`gameEntry_${account.address}`, 'video')
+        // Dispatch custom event to update header
+        window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
       }
+      toast({
+        title: "Game unlocked!",
+        description: "You can now play the halftime game. Thanks for supporting women's football!",
+      })
     } catch (error) {
       toast({
-        title: "Quiz submission failed",
+        title: "Failed to unlock game",
         description: "Please try again",
         variant: "destructive",
       })
@@ -499,6 +472,9 @@ export default function HeatmapPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [aiVideoGenerating, setAiVideoGenerating] = useState(false)
+  
+  // Social media sharing states
+  const [showTweetPopup, setShowTweetPopup] = useState(false)
 
 
   const ShowQuizAfterVideo = () => {
@@ -611,6 +587,36 @@ export default function HeatmapPage() {
       })
     } finally {
       setAiVideoGenerating(false)
+    }
+  }
+
+  // Social media sharing functions
+  const tweetText = "I am watching the PSG/OL match right now and learning something! 📺⚽ Did you know? Women's football has grown by over 60% globally in the past decade! 🔥👩 More than 50 million women and girls are now playing the beautiful game worldwide, breaking barriers and inspiring the next generation! 💪 #WomensFootball #BreakingBarriers #PSG #OL"
+  
+  const handleShareOnTwitter = () => {
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`
+    window.open(tweetUrl, '_blank')
+    setShowTweetPopup(false)
+    toast({
+      title: "Opening Twitter",
+      description: "Share this amazing fact about women's football!",
+    })
+  }
+
+  const handleCopyTweet = async () => {
+    try {
+      await navigator.clipboard.writeText(tweetText)
+      setShowTweetPopup(false)
+      toast({
+        title: "Tweet copied!",
+        description: "You can now paste it on your favorite social media platform",
+      })
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Please copy the text manually",
+        variant: "destructive",
+      })
     }
   }
 
@@ -902,14 +908,14 @@ export default function HeatmapPage() {
           transition={{ delay: 0.2 }}
           className="grid md:grid-cols-2 gap-6"
         >
-          {/* Purchase Entry */}
+          {/* Purchase Ticket */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
             <div className="flex items-start justify-between">
               {/* Left Column - Content */}
               <div className="flex-1 mr-4">
                 <div className="flex items-center space-x-2 mb-4">
                   <CreditCard className="h-6 w-6 text-psg-blue" />
-                  <h3 className="text-xl font-semibold">Purchase Entry</h3>
+                  <h3 className="text-xl font-semibold">Purchase A Ticket</h3>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
                   Get instant access to the halftime game
@@ -966,10 +972,10 @@ export default function HeatmapPage() {
               <div className="flex-1 mr-4">
                 <div className="flex items-center space-x-2 mb-4">
                   <Play className="h-6 w-6 text-green-600" />
-                  <h3 className="text-xl font-semibold">Watch & Learn</h3>
+                  <h3 className="text-xl font-semibold">Watch, Learn & Earn A Ticket</h3>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Watch a short partner video and answer 2 quick questions
+                  Watch a short video, learn about women's football, and help spread awareness by engaging with the content
                 </p>
                 <div className="mb-4">
                   <span className="text-green-600 font-semibold">FREE</span>
@@ -1012,7 +1018,7 @@ export default function HeatmapPage() {
                       size="sm"
                       className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
                     >
-                      Done ! Answer Quiz
+                      Done ! Continue
                     </Button>
                   </div>
                 )}
@@ -1028,7 +1034,7 @@ export default function HeatmapPage() {
         </motion.div>
       )}
 
-      {/* Video Quiz */}
+      {/* Video Completed - Female Football Promotion */}
       {videoWatched && gameEntry === 'none' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -1037,84 +1043,50 @@ export default function HeatmapPage() {
         >
           <div className="flex items-center space-x-2 mb-4">
             <CheckCircle className="h-6 w-6 text-green-600" />
-            <h3 className="text-xl font-semibold">Video Completed - Quick Quiz</h3>
+            <h3 className="text-xl font-semibold">Video Completed - Thank You!</h3>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Answer these questions about the video to unlock the game. You need at least 1 correct answer.
-          </p>
-
-          <div className="space-y-6 mb-6">
-            {/* Question 1 */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <p className="font-medium mb-3">1. What was the main purpose of Orange's "La Compil des Bleues" campaign?</p>
-              <div className="space-y-2">
-                {['To promote their telecom services', 'To support women\'s football and challenge prejudices', 'To advertise new football merchandise'].map((option) => (
-                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <input
-                      type="radio"
-                      name="question1"
-                      value={option}
-                      onChange={(e) => handleQuizAnswer(0, e.target.value)}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
+          
+          {/* Female Football Promotion */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6 mb-6 text-center">
+            <div className="text-5xl mb-4">👩💙⚽</div>
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+              Did you know?
+            </p>
+            <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium mb-4">
+              Women's football has grown by over 60% globally in the past decade, with more than 50 million women and girls now playing the beautiful game worldwide, breaking barriers and inspiring the next generation!
+            </p>
+            
+            {/* Social Media Sharing Button */}
+            <Button
+              onClick={() => setShowTweetPopup(true)}
+              size="sm"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 text-sm font-medium rounded-full"
+            >
+              <div className="flex items-center space-x-2">
+                <Share2 className="w-4 h-4" />
+                <span>Share this fact!</span>
               </div>
-            </div>
-
-            {/* Question 2 */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <p className="font-medium mb-3">2. What creative technique did Orange use to create the compilation?</p>
-              <div className="space-y-2">
-                {['Live filming with both teams', 'VFX to alter the appearance of female players', 'Animation and computer graphics'].map((option) => (
-                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <input
-                      type="radio"
-                      name="question2"
-                      value={option}
-                      onChange={(e) => handleQuizAnswer(1, e.target.value)}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Indicator */}
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-              <span>Progress</span>
-              <span>{quizAnswers.filter(a => a).length}/2 questions answered</span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(quizAnswers.filter(a => a).length / 2) * 100}%` }}
-              ></div>
-            </div>
+            </Button>
           </div>
 
           <Button
-            onClick={handleSubmitQuiz}
-            disabled={!account || isSubmittingEntry || quizAnswers.filter(a => a).length < 2}
+            onClick={handleUnlockGame}
+            disabled={!account || isSubmittingEntry}
             className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmittingEntry ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Submitting...</span>
+                <span>Unlocking...</span>
               </div>
             ) : (
-              "Submit Quiz"
+              "Unlock Game Access"
             )}
           </Button>
           
           {!account && (
             <p className="text-sm text-red-500 mt-4 text-center">
-              🔗 Log in to submit quiz
+              🔗 Log in to unlock the game
             </p>
           )}
         </motion.div>
@@ -1484,6 +1456,67 @@ export default function HeatmapPage() {
                   </Button>
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Social Media Sharing Popup */}
+      {showTweetPopup && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowTweetPopup(false)}
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-4">📱✨</div>
+              <h2 className="text-xl font-bold mb-4">Share Women's Football Facts!</h2>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 text-left">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Ready to share:</p>
+                <p className="text-gray-800 dark:text-gray-200 leading-relaxed">
+                  {tweetText}
+                </p>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+                Help us spread awareness about women's football! 🚀
+              </p>
+              
+              <div className="flex space-x-3">
+                <Button
+                  onClick={handleShareOnTwitter}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Share2 className="w-4 h-4" />
+                    <span>Share on Twitter</span>
+                  </div>
+                </Button>
+                <Button
+                  onClick={handleCopyTweet}
+                  variant="outline"
+                  className="flex-1 border-green-500 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Text</span>
+                  </div>
+                </Button>
+              </div>
+              
+              <Button
+                onClick={() => setShowTweetPopup(false)}
+                variant="ghost"
+                className="mt-4 text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </Button>
             </div>
           </motion.div>
         </div>

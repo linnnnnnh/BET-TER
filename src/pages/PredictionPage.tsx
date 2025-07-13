@@ -460,7 +460,7 @@ export default function PredictionPage() {
           Prediction Market
         </motion.h1>
         <p className="text-gray-600 dark:text-gray-300">
-          Make your predictions for the upcoming match
+          Make your predictions for the first halftime game
         </p>
       </div>
 
