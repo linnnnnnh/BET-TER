@@ -492,4 +492,9 @@ contract Better is Ownable, ERC721URIStorage, IEntropyConsumer {
     function getTokenURI(uint256 _tokenId) public view returns (string memory) {
         return tokenURI(_tokenId);
     }
+
+    /// @notice Allows contract to receive CHZ directly
+    receive() external payable {
+        // Contract can receive CHZ for entropy fees and other operations
+    }
 }

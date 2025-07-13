@@ -135,6 +135,9 @@ contract BetterTest is Test {
 
         // Get required CHZ amount
         uint256 requiredChz = better.getPlayFeeInUsdCents();
+        
+        // Fund the contract with enough CHZ to pay entropy fees (about 1.5 ETH)
+        vm.deal(address(better), 2 ether);
 
         // Play heatmap with CHZ
         vm.deal(address(this), requiredChz);
