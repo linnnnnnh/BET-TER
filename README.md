@@ -132,8 +132,8 @@ src/
    ```
    http://localhost:5173
    ```
-6. ## Adress
-
+6. **Adress**
+   
    WOWToken
    ```bash
    0x3b697F4BBE13fbCBE075C611252aBd6D4237AFe9
