@@ -1,0 +1,5 @@
+@openzeppelin/=lib/openzeppelin-contracts/
+@pythnetwork/pyth-sdk-solidity/=node_modules/@pythnetwork/pyth-sdk-solidity
+@pythnetwork/entropy-sdk-solidity/=node_modules/@pythnetwork/entropy-sdk-solidity
+ds-test/=lib/ds-test/src/
+forge-std/=lib/forge-std/src/
