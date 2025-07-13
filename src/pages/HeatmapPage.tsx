@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useActiveAccount, useReadContract, useWalletBalance } from 'thirdweb/react'
+import { useActiveAccount, useReadContract, useWalletBalance, useSendTransaction } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
 import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { client, chilizSpicyChain as chiliz } from '@/lib/thirdweb'
-import { getContract, toWei } from 'thirdweb'
-import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
+import { getContract, toWei, prepareContractCall } from 'thirdweb'
+import { getEngagementContract, contractUtils } from '@/lib/contract'
 
 
 export default function HeatmapPage() {
@@ -17,6 +17,19 @@ export default function HeatmapPage() {
   const [quizAnswers, setQuizAnswers] = useState<string[]>([])
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false)
   const [hasPlayedGame, setHasPlayedGame] = useState(false)
+  
+  // Smart contract transaction hook
+  const { mutate: sendTransaction, isPending: isTransactionPending } = useSendTransaction()
+  
+  // Get current campaign ID from smart contract
+  const { data: nextCampaignId } = useReadContract({
+    contract: getEngagementContract(),
+    method: 'function nextCampaignId() view returns (uint256)',
+    params: []
+  })
+
+  // Calculate current campaign ID (always nextCampaignId - 1)
+  const actualCurrentCampaignId = nextCampaignId ? Number(nextCampaignId) - 1 : 1
   
   // Mock purchase modal states
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
@@ -126,7 +139,7 @@ export default function HeatmapPage() {
     setWinningCard(randomWinner)
   }
 
-  const handleCardSelection = (cardId: number) => {
+  const handleCardSelection = async (cardId: number) => {
     if (!account) {
       toast({
         title: "Not logged in",
@@ -136,39 +149,104 @@ export default function HeatmapPage() {
       return
     }
     
-    if (selectedCard !== null || showResult) return
+    if (selectedCard !== null || showResult || isTransactionPending) return
+    
+    if (!hasHalftimeTicket) {
+      toast({
+        title: "No ticket available",
+        description: "You don't have a halftime ticket to play",
+        variant: "destructive",
+      })
+      return
+    }
     
     setSelectedCard(cardId)
     
-    // Show result after selection
-    setTimeout(() => {
-      setShowResult(true)
-      const isWinner = cardId === winningCard
-      
-      if (isWinner) {
-        toast({
-          title: "🎉 Congratulations!",
-          description: `You selected the winning card! You've won a reward!`,
-        })
-        
-        // Set game as completed and add reward
-        setTimeout(() => {
-          completeGame()
-          // TODO: Add reward to user's account
-          // await contract.addReward(account?.address, "PSG_MERCHANDISE")
-        }, 2000)
-      } else {
-        toast({
-          title: "😅 Not this time!",
-          description: `Better luck next time! But we have something special for you...`,
-        })
-        
-        // Offer AI video compensation
-        setTimeout(() => {
-          completeGame()
-        }, 2000)
+    // Debug logging
+    console.log('Debug - Transaction details:')
+    console.log('- Account:', account.address)
+    console.log('- Campaign ID:', actualCurrentCampaignId)
+    console.log('- Next Campaign ID:', nextCampaignId)
+    console.log('- Has Halftime Ticket:', hasHalftimeTicket)
+    console.log('- Selected Card:', cardId)
+    
+    try {
+      // Validate campaign ID
+      if (!actualCurrentCampaignId || actualCurrentCampaignId < 1) {
+        throw new Error(`Invalid campaign ID: ${actualCurrentCampaignId}`)
       }
-    }, 1000)
+      
+      // Prepare the smart contract transaction using existing utility
+      const transaction = contractUtils.playSecondHalftimeWithTicket(actualCurrentCampaignId)
+      
+      toast({
+        title: "Transaction submitted",
+        description: "Please wait while your lottery ticket is being processed...",
+      })
+      
+      // Send the transaction
+      sendTransaction(transaction, {
+        onSuccess: (result) => {
+          console.log('Transaction successful:', result)
+          toast({
+            title: "🎉 Transaction successful!",
+            description: "Your lottery ticket has been played! The winner will be determined by the smart contract.",
+          })
+          
+          // Set game as completed since the ticket has been consumed
+          setTimeout(() => {
+            setShowResult(true)
+            completeGame()
+            
+            // Note: In a real implementation, you would listen for contract events
+            // to determine the actual winner from the randomness result
+            toast({
+              title: "🎲 Lottery completed",
+              description: "Check your rewards page to see if you won!",
+            })
+          }, 3000)
+        },
+        onError: (error) => {
+          console.error("Transaction failed:", error)
+          console.error("Error details:", {
+            message: error.message,
+            cause: error.cause,
+            stack: error.stack
+          })
+          
+          // More specific error messages
+          let errorMessage = "There was an error processing your lottery ticket. Please try again."
+          
+          if (error.message.includes("execution reverted")) {
+            errorMessage = "Transaction was rejected by the smart contract. This could be due to:\n" +
+                         "• You don't have a valid halftime ticket\n" +
+                         "• The campaign is not in the halftime period\n" +
+                         "• The campaign ID is incorrect\n" +
+                         "Please check the console for more details."
+          }
+          
+          toast({
+            title: "Transaction failed",
+            description: errorMessage,
+            variant: "destructive",
+          })
+          
+          // Reset selection on error
+          setSelectedCard(null)
+        }
+      })
+      
+    } catch (error) {
+      console.error("Error preparing transaction:", error)
+      toast({
+        title: "Error",
+        description: "Failed to prepare the lottery transaction. Please try again.",
+        variant: "destructive",
+      })
+      
+      // Reset selection on error
+      setSelectedCard(null)
+    }
   } 
 
   const handlePurchaseEntry = async (paymentMethod: 'CHZ' | 'PSG') => {
@@ -265,15 +343,8 @@ export default function HeatmapPage() {
     setIsSubmittingEntry(true)
     
     try {
-      // TODO: Implement smart contract call to playHeatmapWithTicket
+      // TODO: Implement smart contract call to consume the free ticket
       // This will consume one free ticket and allow the user to play
-      // const contract = getEngagementContract()
-      // const transaction = prepareContractCall({
-      //   contract,
-      //   method: "playHeatmapWithTicket",
-      //   params: [BigInt(CURRENT_CAMPAIGN_ID)]
-      // })
-      // await sendTransaction(transaction)
       
       // Simulate successful ticket usage for now
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -393,10 +464,32 @@ export default function HeatmapPage() {
   const freeTicketsCount = hasHalftimeTicket ? 1 : 0
   const hasFreePlays = hasHalftimeTicket
   
+  // Get current campaign info for debugging
+  const { data: campaignData } = useReadContract(contractUtils.getCampaign(actualCurrentCampaignId))
+  
   // Debug logging
-  console.log('Debug HeatmapPage - hasHalftimeTicket:', hasHalftimeTicket)
-  console.log('Debug HeatmapPage - freeTicketsCount:', freeTicketsCount)
-  console.log('Debug HeatmapPage - hasFreePlays:', hasFreePlays)
+  console.log('Debug HeatmapPage - Campaign Info:')
+  console.log('- actualCurrentCampaignId:', actualCurrentCampaignId)
+  console.log('- nextCampaignId:', nextCampaignId)
+  console.log('- campaignData:', campaignData)
+  console.log('- hasHalftimeTicket:', hasHalftimeTicket)
+  console.log('- freeTicketsCount:', freeTicketsCount)
+  console.log('- hasFreePlays:', hasFreePlays)
+  
+  // Check campaign timing
+  if (campaignData) {
+    const now = Math.floor(Date.now() / 1000)
+    const startTimeSecondHalftime = Number(campaignData[5])
+    const endTimeSecondHalftime = Number(campaignData[6])
+    const isActive = campaignData[7]
+    
+    console.log('- Campaign timing:')
+    console.log('  - Current time:', now)
+    console.log('  - Halftime start:', startTimeSecondHalftime)
+    console.log('  - Halftime end:', endTimeSecondHalftime)
+    console.log('  - Campaign active:', isActive)
+    console.log('  - Is halftime period:', now >= startTimeSecondHalftime && now <= endTimeSecondHalftime)
+  }
   
   const canPlayGame = hasFreePlays || gameEntry === 'purchased' || gameEntry === 'video' || gameEntry === 'ticket'
 
@@ -553,7 +646,7 @@ export default function HeatmapPage() {
               <span className="font-medium">You have {freeTicketsCount} free play ticket{freeTicketsCount !== 1 ? 's' : ''}!</span>
             </div>
             <p className="text-green-600 dark:text-green-400 text-sm mt-1">
-              You have free access to the halftime game
+              Congratulations! You have free access to the halftime game
             </p>
           </div>
         ) : canPlayGame ? (
@@ -592,49 +685,167 @@ export default function HeatmapPage() {
           transition={{ delay: 0.15 }}
           className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow border-l-4 border-l-purple-500"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Prediction Game Winner</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Play The Lottery</h2>
+            <div className="flex items-center space-x-2 text-green-600">
+              <Gift className="h-5 w-5" />
+              <span className="font-medium text-sm">1 free ticket available</span>
+            </div>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                If you won, you can pay the lottery with your earned ticket!
+
+          <div className="space-y-4">
+            {/* Game Instructions */}
+            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 text-center">
+              <h4 className="font-semibold mb-2">🎯 Choose Your PSG Champion</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Click on one of the player cards. The winner of the lottery will be randomly selected!
               </p>
-              <div className="flex items-center space-x-2 text-green-600">
-                <Gift className="h-5 w-5" />
-                <span className="font-medium">
-                  1 free ticket available
-                </span>
+            </div>
+
+              {/* Player Cards Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {psgPlayers.map((player) => {
+                  const isSelected = selectedCard === player.id
+                  const isWinner = showResult && winningCard === player.id
+                  const isLoser = showResult && selectedCard === player.id && winningCard !== player.id
+                  const isPendingTransaction = isTransactionPending && selectedCard === player.id
+                  
+                  return (
+                    <motion.div
+                      key={player.id}
+                      whileHover={{ scale: selectedCard === null && account && !isTransactionPending ? 1.05 : 1 }}
+                      whileTap={{ scale: account && !isTransactionPending ? 0.95 : 1 }}
+                      onClick={() => handleCardSelection(player.id)}
+                      className={`relative transition-all duration-300 ${
+                        !account 
+                          ? 'cursor-not-allowed opacity-50'
+                          : selectedCard === null && !isTransactionPending
+                          ? 'cursor-pointer'
+                          : 'cursor-default'
+                      } ${
+                        isPendingTransaction
+                          ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                          : 
+                        isWinner 
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                          : isLoser
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                          : isSelected
+                          ? 'border-psg-blue bg-blue-50 dark:bg-blue-900/20'
+                          : selectedCard === null && account
+                          ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-psg-blue hover:shadow-lg'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-50'
+                      } rounded-xl p-4 border-2`}
+                    >
+                      {/* Player Photo */}
+                      <div className="text-center mb-3">
+                        {typeof player.photo === "string" && player.photo.startsWith("http") ? (
+                          <img
+                          src={player.photo}
+                          alt={player.name}
+                          className="w-16 h-16 rounded-full object-cover mx-auto mb-2 shadow-lg border-2 border-psg-blue"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-br from-psg-blue to-chiliz-red rounded-full flex items-center justify-center text-2xl mx-auto mb-2 shadow-lg">
+                          {player.photo}
+                          </div>
+                        )}
+                        <div className="w-8 h-8 bg-psg-blue text-white rounded-full flex items-center justify-center text-sm font-bold mx-auto">
+                          {player.number}
+                        </div>
+                      </div>
+                      
+                      {/* Player Info */}
+                      <div className="text-center">
+                        <h5 className="font-bold text-sm mb-1">{player.name}</h5>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{player.position}</p>
+                      </div>
+                      
+                      {/* Selection Indicator */}
+                      {isSelected && !isPendingTransaction && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-6 h-6 bg-psg-blue rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Transaction Pending Indicator */}
+                      {isPendingTransaction && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Winner/Loser Indicator */}
+                      {showResult && (
+                        <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
+                          {isWinner ? (
+                            <div className="text-center text-white">
+                              <Trophy className="w-8 h-8 mx-auto mb-1 text-yellow-400" />
+                              <span className="text-sm font-bold">WINNER!</span>
+                            </div>
+                          ) : (
+                            <div className="text-center text-white">
+                              <div className="text-2xl mb-1">😢</div>
+                              <span className="text-xs">Not this time</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
               </div>
+
+              {/* User Authentication Notice */}
+              {!account && (
+                <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-red-600 dark:text-red-400 font-medium">
+                    🔗 Log in to select a player card
+                  </p>
+                </div>
+              )}
+
+              {/* Transaction Status */}
+              {isTransactionPending && selectedCard && (
+                <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center justify-center space-x-2 text-yellow-700 dark:text-yellow-300">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <p className="font-semibold">
+                      Processing transaction for {psgPlayers.find(p => p.id === selectedCard)?.name}...
+                    </p>
+                  </div>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+                    Please wait while your lottery ticket is being processed on the blockchain.
+                  </p>
+                </div>
+              )}
+
+              {/* Selection Status */}
+              {selectedCard && !showResult && !isTransactionPending && (
+                <div className="text-center p-4 bg-psg-blue/10 rounded-lg">
+                  <p className="text-psg-blue font-semibold">
+                    You selected: {psgPlayers.find(p => p.id === selectedCard)?.name}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Revealing the winner...
+                  </p>
+                </div>
+              )}
+
+              {/* Game Result */}
+              {showResult && (
+                <div className="text-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-bold mb-2">
+                    {selectedCard === winningCard ? "🎉 Congratulations!" : "😅 Better luck next time!"}
+                  </h4>
+                </div>
+              )}
             </div>
-            
-            <div className="ml-4">
-              <Button
-                onClick={handleUseFreeTicket}
-                disabled={!account || isSubmittingEntry || !hasHalftimeTicket}
-                className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmittingEntry ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Using...
-                  </>
-                ) : (
-                  <>
-                    <Trophy className="w-4 h-4 mr-2" />
-                    Play with earned ticket
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-          
-          {!account && (
-            <p className="text-sm text-red-500 mt-4 text-center">
-              Connect your wallet to use earned tickets
-            </p>
-          )}
         </motion.div>
       )}
 
@@ -910,7 +1121,7 @@ export default function HeatmapPage() {
       )}
 
       {/* Game Arena */}
-      {canPlayGame && !hasPlayedGame && (
+      {canPlayGame && !hasPlayedGame && !hasHalftimeTicket && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -131,7 +131,7 @@ export default function HomePage() {
             PSG Fan Hub
           </h1>
           <p className="text-base text-gray-600 dark:text-gray-300 max-w-sm mx-auto">
-            Predict, Play, and Win with PSG
+            Predict, Play, and Win Better
           </p>
         </motion.div>
       </div>

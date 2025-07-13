@@ -3,9 +3,9 @@ import { Home, Target, Grid3X3, Gift, User } from 'lucide-react'
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/predictions', icon: Target, label: 'Before Match' },
-  { href: '/halftime', icon: Grid3X3, label: 'Halftime Game' },
-  { href: '/rewards', icon: Gift, label: 'Rewards' },
+  { href: '/predictions', icon: Target, label: 'Predict Game' },
+  { href: '/halftime', icon: Grid3X3, label: 'Play Lottery' },
+  { href: '/rewards', icon: Gift, label: 'Win Rewards' },
   { href: '/profile', icon: User, label: 'Profile' },
 ]
 

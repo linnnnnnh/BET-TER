@@ -37,6 +37,16 @@ export const contractUtils = {
     }
   },
 
+  // Get current active campaign ID (nextCampaignId - 1)
+  getCurrentCampaignId: () => {
+    const contract = getEngagementContract()
+    return {
+      contract,
+      method: 'function nextCampaignId() view returns (uint256)',
+      params: []
+    }
+  },
+
   // Submit predictions - updated to match new ABI
   submitPredictions: (campaignId: number, team1Score: number, team2Score: number) => {
     const contract = getEngagementContract()
