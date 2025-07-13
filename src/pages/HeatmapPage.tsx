@@ -908,6 +908,73 @@ export default function HeatmapPage() {
           transition={{ delay: 0.2 }}
           className="grid md:grid-cols-2 gap-6"
         >
+          {/* Watch Video */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
+            <div className="flex items-start justify-between">
+              {/* Left Column - Content */}
+              <div className="flex-1 mr-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Play className="h-6 w-6 text-green-600" />
+                  <h3 className="text-xl font-semibold">Watch, Learn & Earn A Ticket</h3>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  Watch a short video, learn about women's football, and help spread awareness by engaging with the content
+                </p>
+                <div className="mb-4">
+                  <span className="text-green-600 font-semibold">FREE</span>
+                  <span className="text-gray-500 ml-2">Less than 2 minutes</span>
+                </div>
+              </div>
+              
+              {/* Right Column - Video Button/Player */}
+              <div className="flex flex-col justify-center min-w-[140px]">
+                {!isPlayingVideo ? (
+                  <Button
+                    onClick={handleWatchVideo}
+                    disabled={!account}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Start Video
+                  </Button>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-2">
+                      <iframe 
+                        width="100%" 
+                        height="200" 
+                        src="https://www.youtube.com/embed/X_wLVRYHIS4?si=Rckp5wRhmeoJ72VP" 
+                        title="YouTube video player" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerPolicy="strict-origin-when-cross-origin" 
+                        allowFullScreen
+                        className="rounded-lg"
+                      ></iframe>
+                    </div>
+                    <p className="text-xs text-gray-500">Watch the full video to continue</p>
+                    
+                    
+                    {/* Demo fallback button */}
+                    <Button
+                      onClick={ShowQuizAfterVideo}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      Done ! Continue
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {!account && (
+              <p className="text-sm text-red-500 mt-4 text-center">
+                Log in to watch video
+              </p>
+            )}
+          </div>
+
           {/* Purchase Ticket */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
             <div className="flex items-start justify-between">
@@ -961,73 +1028,6 @@ export default function HeatmapPage() {
             {!account && (
               <p className="text-sm text-red-500 mt-4 text-center">
                 Log in to purchase entry
-              </p>
-            )}
-          </div>
-
-          {/* Watch Video */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
-            <div className="flex items-start justify-between">
-              {/* Left Column - Content */}
-              <div className="flex-1 mr-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Play className="h-6 w-6 text-green-600" />
-                  <h3 className="text-xl font-semibold">Watch, Learn & Earn A Ticket</h3>
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Watch a short video, learn about women's football, and help spread awareness by engaging with the content
-                </p>
-                <div className="mb-4">
-                  <span className="text-green-600 font-semibold">FREE</span>
-                  <span className="text-gray-500 ml-2">~2 minutes maximum</span>
-                </div>
-              </div>
-              
-              {/* Right Column - Video Button/Player */}
-              <div className="flex flex-col justify-center min-w-[140px]">
-                {!isPlayingVideo ? (
-                  <Button
-                    onClick={handleWatchVideo}
-                    disabled={!account}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Start Video
-                  </Button>
-                ) : (
-                  <div className="text-center">
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-2">
-                      <iframe 
-                        width="100%" 
-                        height="200" 
-                        src="https://www.youtube.com/embed/X_wLVRYHIS4?si=Rckp5wRhmeoJ72VP" 
-                        title="YouTube video player" 
-                        frameBorder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        referrerPolicy="strict-origin-when-cross-origin" 
-                        allowFullScreen
-                        className="rounded-lg"
-                      ></iframe>
-                    </div>
-                    <p className="text-xs text-gray-500">Watch the full video to continue</p>
-                    
-                    
-                    {/* Demo fallback button */}
-                    <Button
-                      onClick={ShowQuizAfterVideo}
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
-                    >
-                      Done ! Continue
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {!account && (
-              <p className="text-sm text-red-500 mt-4 text-center">
-                Log in to watch video
               </p>
             )}
           </div>
