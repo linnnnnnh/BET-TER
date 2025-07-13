@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useActiveAccount, useReadContract, useWalletBalance } from 'thirdweb/react'
+import { useActiveAccount, useReadContract, useWalletBalance, useSendTransaction } from 'thirdweb/react'
 import { Button } from '@/components/ui/button'
-import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2 } from 'lucide-react'
+import { Trophy, CreditCard, Play, CheckCircle, Clock, Gamepad2, Star, Gift, Loader2, Share2, Copy } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { client, chilizChain as chiliz } from '@/lib/thirdweb'
-import { getContract, toWei } from 'thirdweb'
-import { getEngagementContract, CURRENT_CAMPAIGN_ID } from '@/lib/contract'
+import { client, chilizSpicyChain as chiliz } from '@/lib/thirdweb'
+import { getContract, toWei, prepareContractCall } from 'thirdweb'
+import { getEngagementContract, contractUtils } from '@/lib/contract'
 
 
 export default function HeatmapPage() {
@@ -14,9 +14,21 @@ export default function HeatmapPage() {
   const [gameEntry, setGameEntry] = useState<'none' | 'purchased' | 'video' | 'ticket'>('none')
   const [isPlayingVideo, setIsPlayingVideo] = useState(false)
   const [videoWatched, setVideoWatched] = useState(false)
-  const [quizAnswers, setQuizAnswers] = useState<string[]>([])
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false)
   const [hasPlayedGame, setHasPlayedGame] = useState(false)
+  
+  // Smart contract transaction hook
+  const { mutate: sendTransaction, isPending: isTransactionPending } = useSendTransaction()
+  
+  // Get current campaign ID from smart contract
+  const { data: nextCampaignId } = useReadContract({
+    contract: getEngagementContract(),
+    method: 'function nextCampaignId() view returns (uint256)',
+    params: []
+  })
+
+  // Calculate current campaign ID (always nextCampaignId - 1)
+  const actualCurrentCampaignId = nextCampaignId ? Number(nextCampaignId) - 1 : 1
   
   // Mock purchase modal states
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
@@ -53,11 +65,11 @@ export default function HeatmapPage() {
     params: [account?.address || ""],
   })
 
-  // Read user's free tickets from smart contract
-  const { data: userFreeTickets = 0 } = useReadContract({
+  // Read user's halftime ticket from smart contract
+  const { data: hasHalftimeTicket = false } = useReadContract({
     contract: getEngagementContract(),
-    method: "userFreeTickets",
-    params: [account?.address || ""]
+    method: "function userHasHalftimeTicket(address) view returns (bool)",
+    params: [account?.address || "0x0000000000000000000000000000000000000000"]
   })
 
   // PSG Players data (2024 squad, updated)
@@ -126,7 +138,7 @@ export default function HeatmapPage() {
     setWinningCard(randomWinner)
   }
 
-  const handleCardSelection = (cardId: number) => {
+  const handleCardSelection = async (cardId: number) => {
     if (!account) {
       toast({
         title: "Not logged in",
@@ -136,39 +148,104 @@ export default function HeatmapPage() {
       return
     }
     
-    if (selectedCard !== null || showResult) return
+    if (selectedCard !== null || showResult || isTransactionPending) return
+    
+    if (!hasHalftimeTicket) {
+      toast({
+        title: "No ticket available",
+        description: "You don't have a halftime ticket to play",
+        variant: "destructive",
+      })
+      return
+    }
     
     setSelectedCard(cardId)
     
-    // Show result after selection
-    setTimeout(() => {
-      setShowResult(true)
-      const isWinner = cardId === winningCard
-      
-      if (isWinner) {
-        toast({
-          title: "🎉 Congratulations!",
-          description: `You selected the winning card! You've won a reward!`,
-        })
-        
-        // Set game as completed and add reward
-        setTimeout(() => {
-          completeGame()
-          // TODO: Add reward to user's account
-          // await contract.addReward(account?.address, "PSG_MERCHANDISE")
-        }, 2000)
-      } else {
-        toast({
-          title: "😅 Not this time!",
-          description: `Better luck next time! But we have something special for you...`,
-        })
-        
-        // Offer AI video compensation
-        setTimeout(() => {
-          completeGame()
-        }, 2000)
+    // Debug logging
+    console.log('Debug - Transaction details:')
+    console.log('- Account:', account.address)
+    console.log('- Campaign ID:', actualCurrentCampaignId)
+    console.log('- Next Campaign ID:', nextCampaignId)
+    console.log('- Has Halftime Ticket:', hasHalftimeTicket)
+    console.log('- Selected Card:', cardId)
+    
+    try {
+      // Validate campaign ID
+      if (!actualCurrentCampaignId || actualCurrentCampaignId < 1) {
+        throw new Error(`Invalid campaign ID: ${actualCurrentCampaignId}`)
       }
-    }, 1000)
+      
+      // Prepare the smart contract transaction using existing utility
+      const transaction = contractUtils.playSecondHalftimeWithTicket(actualCurrentCampaignId)
+      
+      toast({
+        title: "Transaction submitted",
+        description: "Please wait while your lottery ticket is being processed...",
+      })
+      
+      // Send the transaction
+      sendTransaction(transaction, {
+        onSuccess: (result) => {
+          console.log('Transaction successful:', result)
+          toast({
+            title: "🎉 Transaction successful!",
+            description: "Your lottery ticket has been played! The winner will be determined by the smart contract.",
+          })
+          
+          // Set game as completed since the ticket has been consumed
+          setTimeout(() => {
+            setShowResult(true)
+            completeGame()
+            
+            // Note: In a real implementation, you would listen for contract events
+            // to determine the actual winner from the randomness result
+            toast({
+              title: "🎲 Lottery completed",
+              description: "Check your rewards page to see if you won!",
+            })
+          }, 3000)
+        },
+        onError: (error) => {
+          console.error("Transaction failed:", error)
+          console.error("Error details:", {
+            message: error.message,
+            cause: error.cause,
+            stack: error.stack
+          })
+          
+          // More specific error messages
+          let errorMessage = "There was an error processing your lottery ticket. Please try again."
+          
+          if (error.message.includes("execution reverted")) {
+            errorMessage = "Transaction was rejected by the smart contract. This could be due to:\n" +
+                         "• You don't have a valid halftime ticket\n" +
+                         "• The campaign is not in the halftime period\n" +
+                         "• The campaign ID is incorrect\n" +
+                         "Please check the console for more details."
+          }
+          
+          toast({
+            title: "Transaction failed",
+            description: errorMessage,
+            variant: "destructive",
+          })
+          
+          // Reset selection on error
+          setSelectedCard(null)
+        }
+      })
+      
+    } catch (error) {
+      console.error("Error preparing transaction:", error)
+      toast({
+        title: "Error",
+        description: "Failed to prepare the lottery transaction. Please try again.",
+        variant: "destructive",
+      })
+      
+      // Reset selection on error
+      setSelectedCard(null)
+    }
   } 
 
   const handlePurchaseEntry = async (paymentMethod: 'CHZ' | 'PSG') => {
@@ -253,7 +330,7 @@ export default function HeatmapPage() {
       return
     }
 
-    if (freeTicketsCount === 0) {
+    if (!hasHalftimeTicket) {
       toast({
         title: "No free tickets",
         description: "You don't have any free tickets to use",
@@ -265,15 +342,8 @@ export default function HeatmapPage() {
     setIsSubmittingEntry(true)
     
     try {
-      // TODO: Implement smart contract call to playHeatmapWithTicket
+      // TODO: Implement smart contract call to consume the free ticket
       // This will consume one free ticket and allow the user to play
-      // const contract = getEngagementContract()
-      // const transaction = prepareContractCall({
-      //   contract,
-      //   method: "playHeatmapWithTicket",
-      //   params: [BigInt(CURRENT_CAMPAIGN_ID)]
-      // })
-      // await sendTransaction(transaction)
       
       // Simulate successful ticket usage for now
       await new Promise(resolve => setTimeout(resolve, 1000))
@@ -301,54 +371,28 @@ export default function HeatmapPage() {
     // No automatic completion - user must watch the full video
   }
 
-  const handleQuizAnswer = (questionIndex: number, answer: string) => {
-    const newAnswers = [...quizAnswers]
-    newAnswers[questionIndex] = answer
-    setQuizAnswers(newAnswers)
-  }
 
-  const handleSubmitQuiz = async () => {
-    if (quizAnswers.length < 2 || quizAnswers.some(answer => !answer)) {
-      toast({
-        title: "Incomplete quiz",
-        description: "Please answer all questions",
-        variant: "destructive",
-      })
-      return
-    }
 
+  const handleUnlockGame = async () => {
     setIsSubmittingEntry(true)
     try {
-      // Validate quiz answers
-      const correctAnswers = ['To support women\'s football and challenge prejudices', 'VFX to alter the appearance of female players']
-      const score = quizAnswers.reduce((acc, answer, index) => {
-        return acc + (answer === correctAnswers[index] ? 1 : 0)
-      }, 0)
-      
+      // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      if (score >= 1) { // At least 1 correct answer to pass
-        setGameEntry('video')
-        // Save to localStorage for header ticket count
-        if (account?.address) {
-          localStorage.setItem(`gameEntry_${account.address}`, 'video')
-          // Dispatch custom event to update header
-          window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
-        }
-        toast({
-          title: `Quiz completed! Score: ${score}/2`,
-          description: "You can now play the heatmap game",
-        })
-      } else {
-        toast({
-          title: "Quiz failed",
-          description: "Please try again. You need at least 1 correct answer.",
-          variant: "destructive",
-        })
+      setGameEntry('video')
+      // Save to localStorage for header ticket count
+      if (account?.address) {
+        localStorage.setItem(`gameEntry_${account.address}`, 'video')
+        // Dispatch custom event to update header
+        window.dispatchEvent(new CustomEvent('gameEntryUpdated'))
       }
+      toast({
+        title: "Game unlocked!",
+        description: "You can now play the halftime game. Thanks for supporting women's football!",
+      })
     } catch (error) {
       toast({
-        title: "Quiz submission failed",
+        title: "Failed to unlock game",
         description: "Please try again",
         variant: "destructive",
       })
@@ -389,9 +433,36 @@ export default function HeatmapPage() {
     })
   }
 
-  // Convert BigInt to number for UI logic
-  const freeTicketsCount = Number(userFreeTickets)
-  const hasFreePlays = freeTicketsCount > 0
+  // Convert boolean to number for UI logic
+  const freeTicketsCount = hasHalftimeTicket ? 1 : 0
+  const hasFreePlays = hasHalftimeTicket
+  
+  // Get current campaign info for debugging
+  const { data: campaignData } = useReadContract(contractUtils.getCampaign(actualCurrentCampaignId))
+  
+  // Debug logging
+  console.log('Debug HeatmapPage - Campaign Info:')
+  console.log('- actualCurrentCampaignId:', actualCurrentCampaignId)
+  console.log('- nextCampaignId:', nextCampaignId)
+  console.log('- campaignData:', campaignData)
+  console.log('- hasHalftimeTicket:', hasHalftimeTicket)
+  console.log('- freeTicketsCount:', freeTicketsCount)
+  console.log('- hasFreePlays:', hasFreePlays)
+  
+  // Check campaign timing
+  if (campaignData) {
+    const now = Math.floor(Date.now() / 1000)
+    const startTimeSecondHalftime = Number(campaignData[5])
+    const endTimeSecondHalftime = Number(campaignData[6])
+    const isActive = campaignData[7]
+    
+    console.log('- Campaign timing:')
+    console.log('  - Current time:', now)
+    console.log('  - Halftime start:', startTimeSecondHalftime)
+    console.log('  - Halftime end:', endTimeSecondHalftime)
+    console.log('  - Campaign active:', isActive)
+    console.log('  - Is halftime period:', now >= startTimeSecondHalftime && now <= endTimeSecondHalftime)
+  }
   
   const canPlayGame = hasFreePlays || gameEntry === 'purchased' || gameEntry === 'video' || gameEntry === 'ticket'
 
@@ -401,6 +472,9 @@ export default function HeatmapPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [aiVideoGenerating, setAiVideoGenerating] = useState(false)
+  
+  // Social media sharing states
+  const [showTweetPopup, setShowTweetPopup] = useState(false)
 
 
   const ShowQuizAfterVideo = () => {
@@ -516,6 +590,36 @@ export default function HeatmapPage() {
     }
   }
 
+  // Social media sharing functions
+  const tweetText = "I am watching the PSG/OL match right now and learning something! 📺⚽ Did you know? Women's football has grown by over 60% globally in the past decade! 🔥👩 More than 50 million women and girls are now playing the beautiful game worldwide, breaking barriers and inspiring the next generation! 💪 #WomensFootball #BreakingBarriers #PSG #OL"
+  
+  const handleShareOnTwitter = () => {
+    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`
+    window.open(tweetUrl, '_blank')
+    setShowTweetPopup(false)
+    toast({
+      title: "Opening Twitter",
+      description: "Share this amazing fact about women's football!",
+    })
+  }
+
+  const handleCopyTweet = async () => {
+    try {
+      await navigator.clipboard.writeText(tweetText)
+      setShowTweetPopup(false)
+      toast({
+        title: "Tweet copied!",
+        description: "You can now paste it on your favorite social media platform",
+      })
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: "Please copy the text manually",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center py-8">
@@ -524,11 +628,8 @@ export default function HeatmapPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl font-bold text-gradient-psg mb-4"
         >
-          Halftime Game
+          Halftime Lottery
         </motion.h1>
-        <p className="text-gray-600 dark:text-gray-300">
-          Interactive halftime mini-game
-        </p>
       </div>
 
       {/* Game Status */}
@@ -541,8 +642,6 @@ export default function HeatmapPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">Game Entry Status</h2>
           <div className="flex items-center space-x-1 text-psg-blue">
-            <Clock className="h-4 w-4" />
-            <span className="text-sm font-medium">Available during halftime</span>
           </div>
         </div>
         
@@ -553,7 +652,7 @@ export default function HeatmapPage() {
               <span className="font-medium">You have {freeTicketsCount} free play ticket{freeTicketsCount !== 1 ? 's' : ''}!</span>
             </div>
             <p className="text-green-600 dark:text-green-400 text-sm mt-1">
-              You have free access to the halftime game
+              Congratulations! You have free access to the halftime game
             </p>
           </div>
         ) : canPlayGame ? (
@@ -583,6 +682,178 @@ export default function HeatmapPage() {
           </div>
         )}
       </motion.div>
+
+      {/* Prediction Game Winner - Only show if user has free tickets */}
+      {hasHalftimeTicket && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow border-l-4 border-l-purple-500"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Play The Lottery</h2>
+            <div className="flex items-center space-x-2 text-green-600">
+              <Gift className="h-5 w-5" />
+              <span className="font-medium text-sm">1 free ticket available</span>
+            </div>
+          </div>
+          
+
+          <div className="space-y-4">
+            {/* Game Instructions */}
+            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 text-center">
+              <h4 className="font-semibold mb-2">🎯 Choose Your PSG Champion</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Click on one of the player cards. The winner of the lottery will be randomly selected!
+              </p>
+            </div>
+
+              {/* Player Cards Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {psgPlayers.map((player) => {
+                  const isSelected = selectedCard === player.id
+                  const isWinner = showResult && winningCard === player.id
+                  const isLoser = showResult && selectedCard === player.id && winningCard !== player.id
+                  const isPendingTransaction = isTransactionPending && selectedCard === player.id
+                  
+                  return (
+                    <motion.div
+                      key={player.id}
+                      whileHover={{ scale: selectedCard === null && account && !isTransactionPending ? 1.05 : 1 }}
+                      whileTap={{ scale: account && !isTransactionPending ? 0.95 : 1 }}
+                      onClick={() => handleCardSelection(player.id)}
+                      className={`relative transition-all duration-300 ${
+                        !account 
+                          ? 'cursor-not-allowed opacity-50'
+                          : selectedCard === null && !isTransactionPending
+                          ? 'cursor-pointer'
+                          : 'cursor-default'
+                      } ${
+                        isPendingTransaction
+                          ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                          : 
+                        isWinner 
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                          : isLoser
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                          : isSelected
+                          ? 'border-psg-blue bg-blue-50 dark:bg-blue-900/20'
+                          : selectedCard === null && account
+                          ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-psg-blue hover:shadow-lg'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-50'
+                      } rounded-xl p-4 border-2`}
+                    >
+                      {/* Player Photo */}
+                      <div className="text-center mb-3">
+                        {typeof player.photo === "string" && player.photo.startsWith("http") ? (
+                          <img
+                          src={player.photo}
+                          alt={player.name}
+                          className="w-16 h-16 rounded-full object-cover mx-auto mb-2 shadow-lg border-2 border-psg-blue"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gradient-to-br from-psg-blue to-chiliz-red rounded-full flex items-center justify-center text-2xl mx-auto mb-2 shadow-lg">
+                          {player.photo}
+                          </div>
+                        )}
+                        <div className="w-8 h-8 bg-psg-blue text-white rounded-full flex items-center justify-center text-sm font-bold mx-auto">
+                          {player.number}
+                        </div>
+                      </div>
+                      
+                      {/* Player Info */}
+                      <div className="text-center">
+                        <h5 className="font-bold text-sm mb-1">{player.name}</h5>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{player.position}</p>
+                      </div>
+                      
+                      {/* Selection Indicator */}
+                      {isSelected && !isPendingTransaction && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-6 h-6 bg-psg-blue rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Transaction Pending Indicator */}
+                      {isPendingTransaction && (
+                        <div className="absolute top-2 right-2">
+                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Winner/Loser Indicator */}
+                      {showResult && (
+                        <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
+                          {isWinner ? (
+                            <div className="text-center text-white">
+                              <Trophy className="w-8 h-8 mx-auto mb-1 text-yellow-400" />
+                              <span className="text-sm font-bold">WINNER!</span>
+                            </div>
+                          ) : (
+                            <div className="text-center text-white">
+                              <div className="text-2xl mb-1">😢</div>
+                              <span className="text-xs">Not this time</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </div>
+
+              {/* User Authentication Notice */}
+              {!account && (
+                <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-red-600 dark:text-red-400 font-medium">
+                    🔗 Log in to select a player card
+                  </p>
+                </div>
+              )}
+
+              {/* Transaction Status */}
+              {isTransactionPending && selectedCard && (
+                <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center justify-center space-x-2 text-yellow-700 dark:text-yellow-300">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <p className="font-semibold">
+                      Processing transaction for {psgPlayers.find(p => p.id === selectedCard)?.name}...
+                    </p>
+                  </div>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+                    Please wait while your lottery ticket is being processed on the blockchain.
+                  </p>
+                </div>
+              )}
+
+              {/* Selection Status */}
+              {selectedCard && !showResult && !isTransactionPending && (
+                <div className="text-center p-4 bg-psg-blue/10 rounded-lg">
+                  <p className="text-psg-blue font-semibold">
+                    You selected: {psgPlayers.find(p => p.id === selectedCard)?.name}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Revealing the winner...
+                  </p>
+                </div>
+              )}
+
+              {/* Game Result */}
+              {showResult && (
+                <div className="text-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-bold mb-2">
+                    {selectedCard === winningCard ? "🎉 Congratulations!" : "😅 Better luck next time!"}
+                  </h4>
+                </div>
+              )}
+            </div>
+        </motion.div>
+      )}
 
       {/* Free Ticket Option (if user has free tickets) */}
       {hasFreePlays && !canPlayGame && gameEntry === 'none' && (
@@ -637,14 +908,81 @@ export default function HeatmapPage() {
           transition={{ delay: 0.2 }}
           className="grid md:grid-cols-2 gap-6"
         >
-          {/* Purchase Entry */}
+          {/* Watch Video */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
+            <div className="flex items-start justify-between">
+              {/* Left Column - Content */}
+              <div className="flex-1 mr-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Play className="h-6 w-6 text-green-600" />
+                  <h3 className="text-xl font-semibold">Watch, Learn & Earn A Ticket</h3>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  Watch a short video, learn about women's football, and help spread awareness by engaging with the content
+                </p>
+                <div className="mb-4">
+                  <span className="text-green-600 font-semibold">FREE</span>
+                  <span className="text-gray-500 ml-2">Less than 2 minutes</span>
+                </div>
+              </div>
+              
+              {/* Right Column - Video Button/Player */}
+              <div className="flex flex-col justify-center min-w-[140px]">
+                {!isPlayingVideo ? (
+                  <Button
+                    onClick={handleWatchVideo}
+                    disabled={!account}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Start Video
+                  </Button>
+                ) : (
+                  <div className="text-center">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-2">
+                      <iframe 
+                        width="100%" 
+                        height="200" 
+                        src="https://www.youtube.com/embed/X_wLVRYHIS4?si=Rckp5wRhmeoJ72VP" 
+                        title="YouTube video player" 
+                        frameBorder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerPolicy="strict-origin-when-cross-origin" 
+                        allowFullScreen
+                        className="rounded-lg"
+                      ></iframe>
+                    </div>
+                    <p className="text-xs text-gray-500">Watch the full video to continue</p>
+                    
+                    
+                    {/* Demo fallback button */}
+                    <Button
+                      onClick={ShowQuizAfterVideo}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      Done ! Continue
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {!account && (
+              <p className="text-sm text-red-500 mt-4 text-center">
+                Log in to watch video
+              </p>
+            )}
+          </div>
+
+          {/* Purchase Ticket */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
             <div className="flex items-start justify-between">
               {/* Left Column - Content */}
               <div className="flex-1 mr-4">
                 <div className="flex items-center space-x-2 mb-4">
                   <CreditCard className="h-6 w-6 text-psg-blue" />
-                  <h3 className="text-xl font-semibold">Purchase Entry</h3>
+                  <h3 className="text-xl font-semibold">Purchase A Ticket</h3>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
                   Get instant access to the halftime game
@@ -693,77 +1031,10 @@ export default function HeatmapPage() {
               </p>
             )}
           </div>
-
-          {/* Watch Video */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 card-glow">
-            <div className="flex items-start justify-between">
-              {/* Left Column - Content */}
-              <div className="flex-1 mr-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Play className="h-6 w-6 text-green-600" />
-                  <h3 className="text-xl font-semibold">Watch & Learn</h3>
-                </div>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Watch a short partner video and answer 2 quick questions
-                </p>
-                <div className="mb-4">
-                  <span className="text-green-600 font-semibold">FREE</span>
-                  <span className="text-gray-500 ml-2">~2 minutes maximum</span>
-                </div>
-              </div>
-              
-              {/* Right Column - Video Button/Player */}
-              <div className="flex flex-col justify-center min-w-[140px]">
-                {!isPlayingVideo ? (
-                  <Button
-                    onClick={handleWatchVideo}
-                    disabled={!account}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Start Video
-                  </Button>
-                ) : (
-                  <div className="text-center">
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-2">
-                      <iframe 
-                        width="100%" 
-                        height="200" 
-                        src="https://www.youtube.com/embed/X_wLVRYHIS4?si=Rckp5wRhmeoJ72VP" 
-                        title="YouTube video player" 
-                        frameBorder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        referrerPolicy="strict-origin-when-cross-origin" 
-                        allowFullScreen
-                        className="rounded-lg"
-                      ></iframe>
-                    </div>
-                    <p className="text-xs text-gray-500">Watch the full video to continue</p>
-                    
-                    
-                    {/* Demo fallback button */}
-                    <Button
-                      onClick={ShowQuizAfterVideo}
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
-                    >
-                      Done ! Answer Quiz
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {!account && (
-              <p className="text-sm text-red-500 mt-4 text-center">
-                Log in to watch video
-              </p>
-            )}
-          </div>
         </motion.div>
       )}
 
-      {/* Video Quiz */}
+      {/* Video Completed - Female Football Promotion */}
       {videoWatched && gameEntry === 'none' && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -772,91 +1043,57 @@ export default function HeatmapPage() {
         >
           <div className="flex items-center space-x-2 mb-4">
             <CheckCircle className="h-6 w-6 text-green-600" />
-            <h3 className="text-xl font-semibold">Video Completed - Quick Quiz</h3>
+            <h3 className="text-xl font-semibold">Video Completed - Thank You!</h3>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Answer these questions about the video to unlock the game. You need at least 1 correct answer.
-          </p>
-
-          <div className="space-y-6 mb-6">
-            {/* Question 1 */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <p className="font-medium mb-3">1. What was the main purpose of Orange's "La Compil des Bleues" campaign?</p>
-              <div className="space-y-2">
-                {['To promote their telecom services', 'To support women\'s football and challenge prejudices', 'To advertise new football merchandise'].map((option) => (
-                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <input
-                      type="radio"
-                      name="question1"
-                      value={option}
-                      onChange={(e) => handleQuizAnswer(0, e.target.value)}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
+          
+          {/* Female Football Promotion */}
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6 mb-6 text-center">
+            <div className="text-5xl mb-4">👩💙⚽</div>
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+              Did you know?
+            </p>
+            <p className="text-xl text-gray-700 dark:text-gray-300 leading-relaxed font-medium mb-4">
+              Women's football has grown by over 60% globally in the past decade, with more than 50 million women and girls now playing the beautiful game worldwide, breaking barriers and inspiring the next generation!
+            </p>
+            
+            {/* Social Media Sharing Button */}
+            <Button
+              onClick={() => setShowTweetPopup(true)}
+              size="sm"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 text-sm font-medium rounded-full"
+            >
+              <div className="flex items-center space-x-2">
+                <Share2 className="w-4 h-4" />
+                <span>Share this fact!</span>
               </div>
-            </div>
-
-            {/* Question 2 */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <p className="font-medium mb-3">2. What creative technique did Orange use to create the compilation?</p>
-              <div className="space-y-2">
-                {['Live filming with both teams', 'VFX to alter the appearance of female players', 'Animation and computer graphics'].map((option) => (
-                  <label key={option} className="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                    <input
-                      type="radio"
-                      name="question2"
-                      value={option}
-                      onChange={(e) => handleQuizAnswer(1, e.target.value)}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Indicator */}
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
-              <span>Progress</span>
-              <span>{quizAnswers.filter(a => a).length}/2 questions answered</span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(quizAnswers.filter(a => a).length / 2) * 100}%` }}
-              ></div>
-            </div>
+            </Button>
           </div>
 
           <Button
-            onClick={handleSubmitQuiz}
-            disabled={!account || isSubmittingEntry || quizAnswers.filter(a => a).length < 2}
+            onClick={handleUnlockGame}
+            disabled={!account || isSubmittingEntry}
             className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmittingEntry ? (
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Submitting...</span>
+                <span>Unlocking...</span>
               </div>
             ) : (
-              "Submit Quiz"
+              "Unlock Game Access"
             )}
           </Button>
           
           {!account && (
             <p className="text-sm text-red-500 mt-4 text-center">
-              🔗 Log in to submit quiz
+              🔗 Log in to unlock the game
             </p>
           )}
         </motion.div>
       )}
 
       {/* Game Arena */}
-      {canPlayGame && !hasPlayedGame && (
+      {canPlayGame && !hasPlayedGame && !hasHalftimeTicket && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1219,6 +1456,67 @@ export default function HeatmapPage() {
                   </Button>
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Social Media Sharing Popup */}
+      {showTweetPopup && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowTweetPopup(false)}
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-4">📱✨</div>
+              <h2 className="text-xl font-bold mb-4">Share Women's Football Facts!</h2>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 text-left">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Ready to share:</p>
+                <p className="text-gray-800 dark:text-gray-200 leading-relaxed">
+                  {tweetText}
+                </p>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+                Help us spread awareness about women's football! 🚀
+              </p>
+              
+              <div className="flex space-x-3">
+                <Button
+                  onClick={handleShareOnTwitter}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Share2 className="w-4 h-4" />
+                    <span>Share on Twitter</span>
+                  </div>
+                </Button>
+                <Button
+                  onClick={handleCopyTweet}
+                  variant="outline"
+                  className="flex-1 border-green-500 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Text</span>
+                  </div>
+                </Button>
+              </div>
+              
+              <Button
+                onClick={() => setShowTweetPopup(false)}
+                variant="ghost"
+                className="mt-4 text-gray-500 hover:text-gray-700"
+              >
+                Close
+              </Button>
             </div>
           </motion.div>
         </div>

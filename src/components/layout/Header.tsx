@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useActiveAccount, useReadContract } from 'thirdweb/react'
 import { ConnectButton } from 'thirdweb/react'
 import { client } from '@/lib/thirdweb'
@@ -38,14 +38,14 @@ export default function Header() {
 
   // Read free tickets from smart contract
   const contract = getEngagementContract()
-  const { data: freeTickets = 0 } = useReadContract({
+  const { data: hasHalftimeTicket = false } = useReadContract({
     contract,
-    method: "userFreeTickets",
+    method: "function userHasHalftimeTicket(address) view returns (bool)",
     params: [account?.address || "0x0000000000000000000000000000000000000000"],
   })
 
-  // Convert BigInt to number for display
-  const ticketCount = Number(freeTickets || 0)
+  // Convert boolean to number for display (0 or 1)
+  const ticketCount = hasHalftimeTicket ? 1 : 0
 
 
   const toggleDarkMode = () => {
@@ -62,16 +62,16 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 dark:bg-gray-900/80 dark:border-gray-700">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-5">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center space-x-3">
             <img
               src="/src/assets/better_icon.png"
               alt="PSG Logo"
-              className="w-8 h-8 rounded-lg object-cover"
+              className="w-30 h-14 object-cover hover:scale-105 transition-transform duration-200"
             />
-            <span className="font-bold text-lg text-gray-900 dark:text-white">BET-TER</span>
+            {/* <span className="font-bold text-lg text-gray-900 dark:text-white">BET-TER</span> */}
           </div>
 
           {/* Desktop Navigation */}
@@ -81,7 +81,7 @@ export default function Header() {
               <div className="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg">
                 <Ticket className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  {ticketCount} Free Ticket{ticketCount !== 1 ? 's' : ''}
+                  {ticketCount} Free Ticket
                 </span>
               </div>
             )}
