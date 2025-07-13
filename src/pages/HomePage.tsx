@@ -127,7 +127,7 @@ export default function HomePage() {
           transition={{ duration: 0.6 }}
         >
           <h1 className="text-3xl font-bold text-gradient-psg mb-3">
-            PSG Fan Hub
+            Start from here
           </h1>
           <p className="text-base text-gray-600 dark:text-gray-300 max-w-sm mx-auto">
             Predict, Play, and Win Better

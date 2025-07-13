@@ -1,4 +1,4 @@
-# ThirdWeb Integration for PSG Fan Engagement Platform
+# ThirdWeb Integration for bet-ter
 
 This document outlines the migration from Web3Modal/wagmi to ThirdWeb SDK for better Web3 integration and chain abstraction.
 

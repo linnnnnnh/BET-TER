@@ -1,4 +1,4 @@
-# PSG Fan Engagement Platform
+# bet-ter
 
 A Web3 fan engagement platform for PSG supporters built on the Chiliz blockchain, featuring prediction markets, interactive games, and social impact treasury.
 

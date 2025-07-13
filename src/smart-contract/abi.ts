@@ -6,9 +6,14 @@ export const engagementPlatformAbi = [
       { "name": "_chzUsdPriceId", "type": "bytes32", "internalType": "bytes32" },
       { "name": "_trustedDataResolver", "type": "address", "internalType": "address" },
       { "name": "_initialOwner", "type": "address", "internalType": "address" },
-      { "name": "_entropyAddress", "type": "address", "internalType": "address" }
+      { "name": "_entropyAddress", "type": "address", "internalType": "address" },
+      { "name": "_wowTokenAddress", "type": "address", "internalType": "address" }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "receive",
+    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -138,6 +143,20 @@ export const engagementPlatformAbi = [
     "name": "getTokenURI",
     "inputs": [{ "name": "_tokenId", "type": "uint256", "internalType": "uint256" }],
     "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getUserWOWTokens",
+    "inputs": [{ "name": "_user", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getWOWTokenAddress",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "stateMutability": "view"
   },
   {
@@ -318,6 +337,13 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "function",
+    "name": "swapContractBalanceToWOWTokens",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "symbol",
     "inputs": [],
     "outputs": [{ "name": "", "type": "string", "internalType": "string" }],
@@ -371,6 +397,13 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "function",
+    "name": "updateWOWTokenPerBetLoss",
+    "inputs": [{ "name": "_wowTokenPerBetLoss", "type": "uint256", "internalType": "uint256" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "userHasHalftimeTicket",
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
     "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
@@ -380,6 +413,20 @@ export const engagementPlatformAbi = [
     "type": "function",
     "name": "userLoyaltyPoints",
     "inputs": [{ "name": "", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "wowToken",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "address", "internalType": "contract WOWToken" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "wowTokenPerBetLoss",
+    "inputs": [],
     "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
@@ -510,6 +557,15 @@ export const engagementPlatformAbi = [
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "WOWTokensAwarded",
+    "inputs": [
+      { "name": "user", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
+  },
+  {
     "type": "error",
     "name": "AlreadyHasTicket",
     "inputs": []
@@ -590,11 +646,6 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "error",
-    "name": "InputArrayMismatch",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InsufficientChzSent",
     "inputs": []
   },
@@ -624,6 +675,11 @@ export const engagementPlatformAbi = [
   },
   {
     "type": "error",
+    "name": "PredictionGameNotActive",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "PredictionNotPlayed",
     "inputs": []
   },
@@ -635,6 +691,11 @@ export const engagementPlatformAbi = [
   {
     "type": "error",
     "name": "RequestNotFound",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SecondHalftimeGameNotActive",
     "inputs": []
   },
   {
