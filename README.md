@@ -1,4 +1,4 @@
-# bet-ter
+# bet-ter: bet for better
 
 A Web3 fan engagement platform for PSG supporters built on the Chiliz blockchain, featuring prediction markets, interactive games, and social impact treasury.
 
@@ -9,16 +9,24 @@ A Web3 fan engagement platform for PSG supporters built on the Chiliz blockchain
 4. Traditional solutions like education take decades, and media/TV lacks incentives to promote them.
 
 ## 🧠 Our Solution
-1. Credits to stream women’s matches
-2. Rewarded curiosity: get educated through play
-3. AI-generated insights about women’s teams
+1. Leverage the visibility and the popularity of men sport games
+2. Implement a fun betting games during a match where all spectators can play
+3. Grant part of rewards that are dedicated to promote women sport games
 
 ## 🚀 Project Overview
 
 This platform provides a two-phase fan engagement experience:
 
-1. **Prediction Phase** (1 hour before match): Fans answer prediction questions with AI chatbot assistance
+1. **Prediction Phase** (before match): Fans answer prediction questions with AI chatbot assistance
 2. **Heatmap Game** (Halftime): Interactive mini-game with VRF-based outcomes and tiered rewards
+3. For winners, win some advantages with half of them are women game focus. For losers, mint a WOW Token which is an impact utility token for only access to advantages that are related to women sport games.
+
+## 🚀 Roadmap
+
+- Integrate fetching game outcome data by oracle using Chainlink for game data and Hyperlane to bridge the result
+- Integrate mint of WOW token on the frontend dapp
+- Make withdrawal of the CHZ in the contract only possible by swapping to WOW for women sport use
+
 
 ### Key Features
 
@@ -32,6 +40,7 @@ This platform provides a two-phase fan engagement experience:
 ## 🛠 Tech Stack
 
 ### Frontend
+- **Solidity**
 - **React 18** with TypeScript
 - **Vite** for build tooling
 - **Tailwind CSS** for styling
@@ -39,6 +48,8 @@ This platform provides a two-phase fan engagement experience:
 - **shadcn/ui** for components
 
 ### Web3
+- **Pyth** for price feed between CHZ/USD and for randomness request
+- **Socios** for wallet
 - **ThirdWeb** for blockchain interactions and wallet connections
 - **Multi-wallet support** with 500+ wallets built-in
 - **Chiliz Chain** integration with custom chain configurations
@@ -51,24 +62,25 @@ This platform provides a two-phase fan engagement experience:
 ## 📁 Project Structure
 
 ```
-src/
-├── components/
-│   ├── layout/
-│   │   ├── Layout.tsx          # Main layout wrapper
-│   │   ├── Header.tsx          # Top navigation with wallet
-│   │   └── Navigation.tsx      # Bottom navigation tabs
-│   └── ui/                     # Reusable UI components
-├── pages/
-│   ├── HomePage.tsx            # Landing page with match info
-│   ├── PredictionPage.tsx      # Prediction market interface
-│   ├── HeatmapPage.tsx         # Heatmap game arena
-│   ├── RewardsPage.tsx         # Rewards and QR codes
-│   └── ProfilePage.tsx         # User profile and stats
-├── providers/
-│   └── Web3Provider.tsx        # Web3 configuration
-├── lib/
-│   └── utils.ts                # Utility functions
-└── hooks/                      # Custom React hooks
+BET-TER/
+├── src/
+│   ├── components/
+│   │   ├── chat/               # Chat widgets and interfaces
+│   │   ├── layout/             # Layout components (Header, Navigation)
+│   │   └── ui/                 # Reusable UI components
+│   ├── pages/                  # Main application pages
+│   ├── providers/              # React context providers
+│   ├── lib/                    # Utilities and configurations
+│   ├── hooks/                  # Custom React hooks
+│   ├── smart-contract/         # Contract ABIs
+│   ├── assets/                 # Images and static files
+│   ├── app/                    # Python backend
+│   └── App.tsx                 # Main React app
+├── smart-contract/             # Foundry project
+│   ├── src/                    # Solidity contracts
+│   └── test/                   # Contract tests
+├── docs/                       # Documentation
+└── index.html                  # Entry point
 ```
 
 ## 🏗 Architecture Decisions
